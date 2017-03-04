@@ -40,5 +40,8 @@ new: clean $(TARGET)
 run: $(TARGET)
 	sph.exe
 
+debug: $(TARGET)
+	C:\Strawberry\c\bin\gdb.exe sph.exe
+
 # DEPENDENCIES
 main.o: main.cpp
