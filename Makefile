@@ -37,5 +37,8 @@ $(TARGET): $(OBJECTS)
 
 new: clean $(TARGET)
 
+run: $(TARGET)
+	sph.exe
+
 # DEPENDENCIES
 main.o: main.cpp
