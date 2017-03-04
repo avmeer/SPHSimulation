@@ -46,6 +46,10 @@ glm::vec3 up(0, 1, 0);
 
 glm::vec3 light(3, 5, 3);
 glm::vec3 light_color(1, 1, 1);
+glm::vec3 mat_a(0.0215, 0.1745, 0.0215);
+glm::vec3 mat_d(0.07568, 0.61424, 0.07568);
+glm::vec3 mat_s(0.633, 0.727811, 0.633);
+float mat_sh = 0.6 * 128;
 
 CSCI441::ShaderProgram* ground_shader = NULL;
 CSCI441::ShaderProgram* particle_shader = NULL;
@@ -54,6 +58,14 @@ struct GULocs {
   GLint mv_mat;
   GLint mvp_mat;
   GLint normal_mat;
+  GLint light_position;
+  GLint light_La;
+  GLint light_Ld;
+  GLint light_Ls;
+  GLint mat_Ka;
+  GLint mat_Kd;
+  GLint mat_Ks;
+  GLint mat_shiny;
 } ground_u;
 struct GALocs {
   GLint position;
@@ -144,6 +156,14 @@ void render() {
   glUniformMatrix4fv(ground_u.mv_mat, 1, GL_FALSE, &mv_mat[0][0]);
   glUniformMatrix4fv(ground_u.mvp_mat, 1, GL_FALSE, &mvp_mat[0][0]);
   glUniformMatrix3fv(ground_u.normal_mat, 1, GL_FALSE, &normal_mat[0][0]);
+  glUniform3fv(ground_u.light_position, 1, &light[0]);
+  glUniform3fv(ground_u.light_La, 1, &light_color[0]);
+  glUniform3fv(ground_u.light_Ld, 1, &light_color[0]);
+  glUniform3fv(ground_u.light_Ls, 1, &light_color[0]);
+  glUniform3fv(ground_u.mat_Ka, 1, &mat_a[0]);
+  glUniform3fv(ground_u.mat_Ks, 1, &mat_s[0]);
+  glUniform3fv(ground_u.mat_Kd, 1, &mat_d[0]);
+  glUniform1f(ground_u.mat_shiny, mat_sh);
 
   glBindVertexArray(vaods[0]);
   glDrawElements(GL_TRIANGLES, sizeof(ground_indices) / sizeof(unsigned short), GL_UNSIGNED_SHORT, (void*)0);
@@ -196,6 +216,14 @@ void setup_shaders() {
   ground_u.mv_mat = ground_shader->getUniformLocation("mv_mat");
   ground_u.mvp_mat = ground_shader->getUniformLocation("mvp_mat");
   ground_u.normal_mat = ground_shader->getUniformLocation("normal_mat");
+  ground_u.light_position = ground_shader->getUniformLocation("light.position");
+  ground_u.light_La = ground_shader->getUniformLocation("light.La");
+  ground_u.light_Ld = ground_shader->getUniformLocation("light.Ld");
+  ground_u.light_Ls = ground_shader->getUniformLocation("light.Ls");
+  ground_u.mat_Ka = ground_shader->getUniformLocation("mat.Ka");
+  ground_u.mat_Kd = ground_shader->getUniformLocation("mat.Kd");
+  ground_u.mat_Ks = ground_shader->getUniformLocation("mat.Ks");
+  ground_u.mat_shiny = ground_shader->getUniformLocation("mat.shiny");
 
   ground_a.position = ground_shader->getAttributeLocation("position");
   ground_a.normal = ground_shader->getAttributeLocation("normal");
