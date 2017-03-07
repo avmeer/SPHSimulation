@@ -296,7 +296,9 @@ void setup_shaders() {
   );
   particle_shader = new CSCI441::ShaderProgram(
     "shaders/particle.v.glsl",
-    "shaders/particle.f.glsl"
+    "",
+    "shaders/particle.f.glsl",
+    ""
   );
 
   ground_u.mv_mat = ground_shader->getUniformLocation("mv_mat");

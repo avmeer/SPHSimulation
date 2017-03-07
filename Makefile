@@ -1,27 +1,75 @@
+########################################
+## SETUP MAKEFILE
+##      Set the appropriate TARGET (our
+## executable name) and any OBJECT files
+## we need to compile for this program.
+##
+## Next set the path to our local
+## include/, lib/, and bin/ folders.
+## (If you we are compiling in the lab,
+## then you can ignore these values.
+## They are only for if you are
+## compiling on your personal machine.)
+##
+## Set if we are compiling in the lab
+## environment or not.  Set to:
+##    1 - if compiling in the Lab
+##    0 - if compiling at home
+##
+## Finally, set the flags for which
+## libraries are using and want to
+## compile against.
+########################################
+
 TARGET = sph
-OBJECTS = main.o src/ShaderProgram.o src/ShaderUtils.o src/OpenGLUtils.o
+OBJECTS = main.o src/OpenGLUtils.o src/ShaderProgram.o src/ShaderUtils.o
 
-CXX    = C:/Rtools/mingw_64\bin\g++.exe
-CFLAGS = -Wall -g
+ifeq ($(OS), Windows_NT)
+	CFLAGS = -Wall -g
 
-INCPATH += -IC:/sw/opengl/include -I./include
-LIBPATH += -LC:/sw/opengl/lib -L./lib
+	INCPATH += -I./include
+	LIBPATH += -L./lib
+endif
 
-DEL = rm
+#############################
+## SETUP GLFW
+#############################
+ifeq ($(OS), Windows_NT)
+	LIBS += -lglfw3dll
+	else
+		LIBS += -lglfw
+endif
 
-LIBS += -lopengl32 -lglut -lglu32 -lglew32
+#############################
+## SETUP OpenGL & GLUT 
+#############################
+ifeq ($(OS), Windows_NT)
+	LIBS +=  -lopengl32 -lglut -lglu32 
+
+	# Linux and all other builds
+    else
+		LIBS += -lGL -lglut -lGLU
+endif
+
+#############################
+## SETUP GLEW 
+#############################
+ifeq ($(OS), Windows_NT)
+	LIBS += -lglew32
+	else
+		LIBS += -lGLEW
+endif
+
+
+
+#############################
+## COMPILATION INSTRUCTIONS 
+#############################
 
 all: $(TARGET)
 
 clean:
-	$(DEL) -f $(OBJECTS) $(TARGET)
-
-depend:
-	$(DEL) -f Makefile.bak
-	mv Makefile Makefile.bak
-	sed '/^# DEPENDENCIES/,$$d' Makefile.bak > Makefile
-	echo '# DEPENDENCIES' >> Makefile
-	$(CXX) -MM *.cpp >> Makefile
+	rm -f $(OBJECTS) $(TARGET)
 
 .c.o: 	
 	$(CXX) $(CFLAGS) $(INCPATH) -c -o $@ $<
@@ -32,16 +80,5 @@ depend:
 .cpp.o: 	
 	$(CXX) $(CFLAGS) $(INCPATH) -c -o $@ $<
 
-$(TARGET): $(OBJECTS)
+$(TARGET): $(OBJECTS) 
 	$(CXX) $(CFLAGS) $(INCPATH) -o $@ $^ $(LIBPATH) $(LIBS)
-
-new: clean $(TARGET)
-
-run: $(TARGET)
-	sph.exe
-
-debug: $(TARGET)
-	C:\Strawberry\c\bin\gdb.exe sph.exe
-
-# DEPENDENCIES
-main.o: main.cpp

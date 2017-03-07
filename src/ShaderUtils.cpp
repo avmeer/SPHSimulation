@@ -1,11 +1,11 @@
 #include "../include/ShaderUtils.h"
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include <fstream>
 #include <string>
+#include <cstring>
+#include <string.h>
 
 // readTextFromFile() //////////////////////////////////////////////////////////////
 //
@@ -17,18 +17,19 @@ void CSCI441::ShaderUtils::readTextFromFile(const char *filename, char* &output)
     std::string line;
 
     std::ifstream in(filename);
-	if (in.is_open()) {
+	if(in.is_open()){
 		while( std::getline(in, line) ) {
 			buf += line + "\n";
 		}
-		output = new char[buf.length()+1];
-		strncpy(output, buf.c_str(), buf.length());
-		output[buf.length()] = '\0';
-
-		in.close();
-	} else {
-		printf("Shader program did not load!\n");
 	}
+	else{
+		printf("\n[ERROR]: | Error Opening shader file %s\n",filename);
+	}
+    output = new char[buf.length()+1];
+    strncpy(output, buf.c_str(), buf.length());
+    output[buf.length()] = '\0';
+
+    in.close();
 }
 
 const char* CSCI441::ShaderUtils::GL_type_to_string(GLenum type) {
@@ -54,8 +55,6 @@ const char* CSCI441::ShaderUtils::GL_type_to_string(GLenum type) {
 const char* CSCI441::ShaderUtils::GL_shader_type_to_string(GLint type) {
   switch(type) {
     case GL_VERTEX_SHADER: return "Vertex Shader";
-    case GL_TESS_CONTROL_SHADER: return "Tess Ctrl Shader";
-    case GL_TESS_EVALUATION_SHADER: return "Tess Eval Shader";
     case GL_GEOMETRY_SHADER: return "Geometry Shader";
     case GL_FRAGMENT_SHADER: return "Fragment Shader";
     default: break;
@@ -150,8 +149,6 @@ void printSubroutineInfo( GLuint handle, GLenum shaderStage ) {
 void CSCI441::ShaderUtils::printShaderInfo( GLuint handle ) {
 	int params;
 	bool hasVertexShader = false;
-	bool hasTessControlShader = false;
-	bool hasTessEvalShader = false;
 	bool hasGeometryShader = false;
 	bool hasFragmentShader = false;
 
@@ -168,13 +165,11 @@ void CSCI441::ShaderUtils::printShaderInfo( GLuint handle ) {
 		printf("[INFO]: |   %i) %-38s Handle: %2i |\n", i, GL_shader_type_to_string(shaderType), shaders[i]);
 		
 		if( shaderType == GL_VERTEX_SHADER ) hasVertexShader = true;
-		else if( shaderType == GL_TESS_CONTROL_SHADER ) hasTessControlShader = true;
-		else if( shaderType == GL_TESS_EVALUATION_SHADER ) hasTessEvalShader = true;
 		else if( shaderType == GL_GEOMETRY_SHADER ) hasGeometryShader = true;
 		else if( shaderType == GL_FRAGMENT_SHADER ) hasFragmentShader = true;
 	}
 
-	printf( "[INFO]: >--------------------------------------------------------<\n");
+	printf( "[INFO]: |--------------------------------------------------------|\n");
 
 	glGetProgramiv(handle, GL_ACTIVE_ATTRIBUTES, &params);
 	printf("[INFO]: | GL_ACTIVE_ATTRIBUTES: %32i |\n", params);
@@ -208,7 +203,7 @@ void CSCI441::ShaderUtils::printShaderInfo( GLuint handle ) {
 		}
 	}
 
-	printf( "[INFO]: >--------------------------------------------------------<\n");
+	printf( "[INFO]: |--------------------------------------------------------|\n");
 
 	glGetProgramiv(handle, GL_ACTIVE_UNIFORMS, &params);
 	printf("[INFO]: | GL_ACTIVE_UNIFORMS: %34i |\n", params);
@@ -224,101 +219,19 @@ void CSCI441::ShaderUtils::printShaderInfo( GLuint handle ) {
 				char long_name[64];
 				sprintf(long_name, "%s[%i]", name, j);
 				int location = glGetUniformLocation(handle, long_name);
-				printf("[INFO]: |  %2i) type: %-15s name: %-13s loc: %2i |\n",
+				printf("[INFO]: |   %i) type: %-15s name: %-13s loc: %2i |\n",
 						i, GL_type_to_string(type), long_name, location);
 			}
 		} else {
 			int location = glGetUniformLocation(handle, name);
-			printf("[INFO]: |  %2i) type: %-15s name: %-13s loc: %2i |\n",
+			printf("[INFO]: |   %i) type: %-15s name: %-13s loc: %2i |\n",
 					i, GL_type_to_string(type), name, location);
 		}
 	}
 
-	printf( "[INFO]: |--------------------------------------------------------|\n");
-
-	int vsCount, tcsCount, tesCount, gsCount, fsCount;
-	vsCount = tcsCount = tesCount = gsCount = fsCount = 0;
-
-	glGetProgramiv(handle, GL_ACTIVE_UNIFORM_BLOCKS, &params);
-	printf("[INFO]: | GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS: %20d |\n", params);
-	for(int i = 0; i < params; i++ ) {
-		int params2;
-		glGetActiveUniformBlockiv(handle, i, GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS, &params2 );
-
-		int actualLen;
-		glGetActiveUniformBlockiv(handle, i, GL_UNIFORM_BLOCK_NAME_LENGTH, &actualLen);
-		char *name = (char *)malloc(sizeof(char) * actualLen);
-		glGetActiveUniformBlockName(handle, i, actualLen, NULL, name);
-
-		GLuint *indices = (GLuint*)malloc(params2*sizeof(GLuint));
-		glGetActiveUniformBlockiv( handle, i, GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES, (GLint*)indices);
-
-		GLint *offsets = (GLint*)malloc(params2*sizeof(GLint));
-		glGetActiveUniformsiv(handle, params2, indices, GL_UNIFORM_OFFSET, offsets);
-
-		printf("[INFO]: | %d) %-34s   # Uniforms: %2d |\n", i, name, params2);
-
-		GLint vs, tcs, tes, gs, fs;
-		glGetActiveUniformBlockiv( handle, i, GL_UNIFORM_BLOCK_REFERENCED_BY_VERTEX_SHADER, &vs);			if( vs ) vsCount++;
-		glGetActiveUniformBlockiv( handle, i, GL_UNIFORM_BLOCK_REFERENCED_BY_TESS_CONTROL_SHADER, &tcs);	if( tcs) tcsCount++;
-		glGetActiveUniformBlockiv( handle, i, GL_UNIFORM_BLOCK_REFERENCED_BY_TESS_EVALUATION_SHADER, &tes);	if( tes) tesCount++;
-		glGetActiveUniformBlockiv( handle, i, GL_UNIFORM_BLOCK_REFERENCED_BY_GEOMETRY_SHADER, &gs);			if( gs ) gsCount++;
-		glGetActiveUniformBlockiv( handle, i, GL_UNIFORM_BLOCK_REFERENCED_BY_FRAGMENT_SHADER, &fs);			if( fs ) fsCount++;
-		printf("[INFO]: |   Used in: %-4s %-8s %-8s %-3s %-4s   Shader(s) |\n", (vs ? "Vert" : ""), (tcs ? "TessCtrl" : ""), (tes ? "TessEval" : ""), (gs ? "Geo" : ""), (fs ? "Frag" : ""));
-
-		int maxUniLength;
-		glGetProgramiv(handle, GL_ACTIVE_UNIFORM_MAX_LENGTH, &maxUniLength);
-		char *name2 = (char *)malloc(sizeof(char) * maxUniLength);
-		for(int j = 0; j < params2; j++) {
-			GLenum type;
-			int uniSize;
-			glGetActiveUniform(handle, indices[j], maxUniLength, &actualLen, &uniSize, &type, name2);
-
-			printf("[INFO]: |  %2d) type: %-5s name: %-10s index: %2d offset: %2d |\n", j, GL_type_to_string(type), name2, indices[j], offsets[j]);
-		}
-	}
-
-	if( vsCount + tcsCount + tesCount + gsCount + vsCount > 0 ) {
-		printf( "[INFO]: | Shader Uniform Block Counts                            |\n");
-		if( hasVertexShader ) {
-			GLint maxVertexUniformBlocks = 0;
-			glGetIntegerv( GL_MAX_VERTEX_UNIFORM_BLOCKS, &maxVertexUniformBlocks );
-
-			printf( "[INFO]: |   Vertex   Shader Uniform Blocks: %16d/%2d  |\n", vsCount, maxVertexUniformBlocks );
-		}
-		if( hasTessControlShader ) {
-			GLint maxTessControlUniformBlocks = 0;
-			glGetIntegerv( GL_MAX_TESS_CONTROL_UNIFORM_BLOCKS, &maxTessControlUniformBlocks );
-
-			printf( "[INFO]: |   Tess Ctrl Shader Uniform Blocks: %16d/%2d  |\n", tcsCount, maxTessControlUniformBlocks );
-		}
-		if( hasTessEvalShader ) {
-			GLint maxTessEvalUniformBlocks = 0;
-			glGetIntegerv( GL_MAX_TESS_EVALUATION_UNIFORM_BLOCKS, &maxTessEvalUniformBlocks );
-
-			printf( "[INFO]: |   Tess Eval Shader Uniform Blocks: %16d/%2d  |\n", tesCount, maxTessEvalUniformBlocks );
-		}
-		if( hasGeometryShader ) {
-			GLint maxGeometryUniformBlocks = 0;
-			glGetIntegerv( GL_MAX_GEOMETRY_UNIFORM_BLOCKS, &maxGeometryUniformBlocks );
-
-			printf( "[INFO]: |   Geometry Shader Uniform Blocks: %16d/%2d  |\n", gsCount, maxGeometryUniformBlocks );
-		}
-		if( hasFragmentShader ) {
-			GLint maxFragmentUniformBlocks = 0;
-			glGetIntegerv( GL_MAX_FRAGMENT_UNIFORM_BLOCKS, &maxFragmentUniformBlocks );
-
-			printf( "[INFO]: |   Fragment Shader Uniform Blocks: %16d/%2d  |\n", fsCount, maxFragmentUniformBlocks );
-		}
-	}
-
-
-
-	printf( "[INFO]: >--------------------------------------------------------<\n");
+	printf( "[INFO]: \\--------------------------------------------------------/\n");
 	
 	if( hasVertexShader   ) printSubroutineInfo( handle, GL_VERTEX_SHADER );
-	if( hasTessControlShader) printSubroutineInfo( handle, GL_TESS_CONTROL_SHADER );
-	if( hasTessEvalShader) printSubroutineInfo( handle, GL_TESS_EVALUATION_SHADER );
 	if( hasGeometryShader ) printSubroutineInfo( handle, GL_GEOMETRY_SHADER );
 	if( hasFragmentShader ) printSubroutineInfo( handle, GL_FRAGMENT_SHADER );
 	

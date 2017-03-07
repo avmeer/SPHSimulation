@@ -8,35 +8,8 @@ void CSCI441::OpenGLUtils::printOpenGLInfo() {
 	GLint maxVertexAttribs = 0;
 	glGetIntegerv( GL_MAX_VERTEX_ATTRIBS, &maxVertexAttribs );
 
-	GLint maxPatchVertices = 0;
-	glGetIntegerv(GL_MAX_PATCH_VERTICES, &maxPatchVertices);
-
-	GLint maxTessLevel = 0;
-	glGetIntegerv(GL_MAX_TESS_GEN_LEVEL, &maxTessLevel);
-
-	GLint maxVertexUniforms = 0;
-	glGetIntegerv( GL_MAX_VERTEX_UNIFORM_COMPONENTS, &maxVertexUniforms );
-
-	GLint maxTessControlUniforms = 0;
-	glGetIntegerv( GL_MAX_TESS_CONTROL_UNIFORM_COMPONENTS, &maxTessControlUniforms );
-
-	GLint maxTessEvalUniforms = 0;
-	glGetIntegerv( GL_MAX_TESS_EVALUATION_UNIFORM_COMPONENTS, &maxTessEvalUniforms );
-
-	GLint maxGeometryUniforms = 0;
-	glGetIntegerv( GL_MAX_GEOMETRY_UNIFORM_COMPONENTS, &maxGeometryUniforms );
-
-	GLint maxFragmentUniforms = 0;
-	glGetIntegerv( GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &maxFragmentUniforms );
-
 	GLint maxVertexUniformBlocks = 0;
 	glGetIntegerv( GL_MAX_VERTEX_UNIFORM_BLOCKS, &maxVertexUniformBlocks );
-
-	GLint maxTessControlUniformBlocks = 0;
-	glGetIntegerv( GL_MAX_TESS_CONTROL_UNIFORM_BLOCKS, &maxTessControlUniformBlocks );
-
-	GLint maxTessEvalUniformBlocks = 0;
-	glGetIntegerv( GL_MAX_TESS_EVALUATION_UNIFORM_BLOCKS, &maxTessEvalUniformBlocks );
 
 	GLint maxGeometryUniformBlocks = 0;
 	glGetIntegerv( GL_MAX_GEOMETRY_UNIFORM_BLOCKS, &maxGeometryUniformBlocks );
@@ -62,22 +35,10 @@ void CSCI441::OpenGLUtils::printOpenGLInfo() {
 	fprintf( stdout, "[INFO]: |   Shading Version: %35s |\n", glGetString(GL_SHADING_LANGUAGE_VERSION) );
 	fprintf( stdout, "[INFO]: >--------------------------------------------------------<\n");
 	fprintf( stdout, "[INFO]: |   Max # Vertex Attributes:  %26d |\n", maxVertexAttribs );
-	fprintf( stdout, "[INFO]: |   Max # Patch Vertices:  %29d |\n", maxPatchVertices );
-	fprintf( stdout, "[INFO]: |   Max # Tess Level:  %33d |\n", maxTessLevel );
-	fprintf( stdout, "[INFO]: >--------------------------------------------------------<\n");
-	fprintf( stdout, "[INFO]: |   Max # Vertex Uniforms:  %28d |\n", maxVertexUniforms );
-	fprintf( stdout, "[INFO]: |   Max # Tess Ctrl Uniforms:  %25d |\n", maxTessControlUniforms );
-	fprintf( stdout, "[INFO]: |   Max # Tess Eval Uniforms:  %25d |\n", maxTessEvalUniforms );
-	fprintf( stdout, "[INFO]: |   Max # Geometry Uniforms:  %26d |\n", maxGeometryUniforms );
-	fprintf( stdout, "[INFO]: |   Max # Fragment Uniforms:  %26d |\n", maxFragmentUniforms );
-	fprintf( stdout, "[INFO]: >--------------------------------------------------------<\n");
 	fprintf( stdout, "[INFO]: |   Max # Vertex Uniform Blocks:  %22d |\n", maxVertexUniformBlocks );
-	fprintf( stdout, "[INFO]: |   Max # Tess Control Uniform Blocks:  %16d |\n", maxTessControlUniformBlocks );
-	fprintf( stdout, "[INFO]: |   Max # Tess Evaluation Uniform Blocks:  %13d |\n", maxTessEvalUniformBlocks );
 	fprintf( stdout, "[INFO]: |   Max # Geometry Uniform Blocks:  %20d |\n", maxGeometryUniformBlocks );
 	fprintf( stdout, "[INFO]: |   Max # Fragment Uniform Blocks:  %20d |\n", maxFragmentUniformBlocks );
 	fprintf( stdout, "[INFO]: |   Max Uniform Blocks Size:  %20d bytes |\n", maxUniformBlockSize );
-	fprintf( stdout, "[INFO]: >--------------------------------------------------------<\n");
 	fprintf( stdout, "[INFO]: |   Max # Lights:    %35d |\n", maxLights );
 	fprintf( stdout, "[INFO]: |   Max # Textures:  %35d |\n", maxTextures );
 	fprintf( stdout, "[INFO]: \\--------------------------------------------------------/\n\n");
