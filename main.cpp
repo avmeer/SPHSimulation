@@ -8,6 +8,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <cstring>
 
 #include <string>
 #include <fstream>
@@ -27,6 +28,10 @@ typedef struct {
   float x, y, z;
   float nx, ny, nz;
 } vertex;
+
+typedef struct {
+  float x, y, z, w;
+} position;
 
 const vertex ground_verts[] = {
   {-15, 0, -15, 0, 1, 0},
@@ -66,6 +71,7 @@ float particle_mat_sh = 0.25 * 128;
 
 CSCI441::ShaderProgram* ground_shader = NULL;
 CSCI441::ShaderProgram* particle_shader = NULL;
+GLuint compute_shader = NULL;
 
 struct GULocs {
   GLint mv_mat;
@@ -103,11 +109,18 @@ struct PALocs {
   GLint normal;
 } particle_a;
 
+struct CULocs {
+  GLint time;
+} compute_u;
+
 GLuint vaods[2];
 
-glm::vec3* particle_locs;
-
 float time;
+position* particle_locs;
+GLuint compute_vaods[1];
+GLuint position_buffer;
+
+bool test = true;
 
 void calculate_camera_pos() {
   eye.x = camera_angles.z * sinf(camera_angles.x) * sinf(camera_angles.y);
@@ -168,13 +181,32 @@ void normal_keys(unsigned char key, int x, int y) {
 }
 
 void update_particles() {
-  for (int i = 0; i < PARTICLES; i += 1) {
-    particle_locs[i].y = cos(
-      time * 0.1 + 
-      particle_locs[i].x * 0.5 +
-      particle_locs[i].z * 0.5
-    ) + 2;
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER, position_buffer);
+
+  glUseProgram(compute_shader);
+  glUniform1f(compute_u.time, time);
+  glDispatchCompute(PARTICLES / 10, 1, 1);
+  glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+  if (test) {
+    GLfloat buffer_data[4 * PARTICLES];
+    glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 4 * PARTICLES * sizeof(GLfloat), buffer_data);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+    printf("buffer in update:\n");
+    for (int i = 1; i < 4 * PARTICLES; i += 4) {
+      printf("%4.2f ", buffer_data[i]);
+    }
+    printf("\n");
+    test = false;
   }
+
+  // for (int i = 0; i < PARTICLES; i += 1) {
+  //   particle_locs[i].y = cos(
+  //     time * 0.1 + 
+  //     particle_locs[i].x * 0.5 +
+  //     particle_locs[i].z * 0.5
+  //   ) + 2;
+  // }
 }
 
 void render_timer(int value) {
@@ -231,7 +263,11 @@ void render() {
       glm::vec4(1, 0, 0, 0),
       glm::vec4(0, 1, 0, 0),
       glm::vec4(0, 0, 1, 0),
-      glm::vec4(particle_locs[i], 1)
+      glm::vec4(
+        particle_locs[i].x,
+        particle_locs[i].y,
+        particle_locs[i].z,
+      1)
     );
     mv_mat = v_mat * m_mat;
     mvp_mat = p_mat * mv_mat;
@@ -330,6 +366,15 @@ void setup_shaders() {
 
   particle_a.position = particle_shader->getAttributeLocation("position");
   particle_a.normal = particle_shader->getAttributeLocation("normal");
+  
+  compute_shader = glCreateProgram();
+  glAttachShader(
+    compute_shader, 
+    CSCI441::ShaderUtils::compileShader("shaders/compute.glsl", GL_COMPUTE_SHADER)
+  );
+  glLinkProgram(compute_shader);
+
+  compute_u.time = glGetUniformLocation(compute_shader, "time");
 }
 
 void setup_buffers() {
@@ -408,19 +453,52 @@ void setup_buffers() {
   glVertexAttribPointer(particle_a.position, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
   glEnableVertexAttribArray(particle_a.normal);
   glVertexAttribPointer(particle_a.normal, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+
+  // Buffer for the compute shader.
+  glGenBuffers(1, &position_buffer);
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, position_buffer);
+  glBufferData(
+    GL_SHADER_STORAGE_BUFFER,
+    PARTICLES * sizeof(position),
+    &particle_locs[0],
+    GL_DYNAMIC_DRAW
+  );
+
+  glGenVertexArrays(1, compute_vaods);
+  glBindVertexArray(compute_vaods[0]);
+
+  glBindBuffer(GL_ARRAY_BUFFER, position_buffer);
+  glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(0);
+
+  printf("particle_locs in setup:\n");
+  for (int i = 0; i < PARTICLES; i += 1) {
+    printf("%4.2f ", particle_locs[i].y);
+  }
+  printf("\n");
+
+  GLfloat buffer_data[4 * PARTICLES];
+  glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 4 * PARTICLES * sizeof(GLfloat), buffer_data);
+  printf("buffer in setup:\n");
+  for (int i = 1; i < 4 * PARTICLES; i += 4) {
+    printf("%4.2f ", buffer_data[i]);
+  }
+  printf("\n");
+
+  glBindVertexArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void setup_particles() {
-  particle_locs = new glm::vec3[PARTICLES];
+  particle_locs = new position[PARTICLES];
   int sp = sqrt(PARTICLES);
 
   for (int i = 0; i < sp; i += 1) {
     for (int j = 0; j < sp; j += 1) {
-      particle_locs[i * sp + j] = glm::vec3(
-        i * 2 - sp,
-        2,
-        j * 2 - sp
-      );
+      particle_locs[i * sp + j].x = i * 2 - sp;
+      particle_locs[i * sp + j].y = 2;
+      particle_locs[i * sp + j].z = j * 2 - sp;
+      particle_locs[i * sp + j].w = 1;
     }
   }
 }
@@ -431,8 +509,8 @@ int main(int argc, char** argv) {
   setup_GLUT(argc, argv);
   setup_OGL();
   setup_shaders();
-  setup_buffers();
   setup_particles();
+  setup_buffers();
 
   calculate_camera_pos();
 
