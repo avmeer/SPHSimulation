@@ -273,7 +273,7 @@ void render() {
   glUniform3fv(particle_u.mat_Kd, 1, &particle_mat_d[0]);
   glUniform1f(particle_u.mat_shiny, particle_mat_sh);
 
-  for (int i = 0; i < PARTICLES; i += 1) {
+  for (int i = 0; i < 1; i += 1) {
     m_mat = glm::mat4(
       glm::vec4(1, 0, 0, 0),
       glm::vec4(0, 1, 0, 0),
@@ -293,12 +293,8 @@ void render() {
     glUniformMatrix3fv(particle_u.normal_mat, 1, GL_FALSE, &normal_mat[0][0]);
 
     glBindVertexArray(vaods[PARTICLE]);
-    glDrawElements(
-      GL_TRIANGLES,
-      6 * SPHERE_THETA_STEPS * SPHERE_PHI_STEPS,
-      GL_UNSIGNED_SHORT,
-      (void*)0
-    );
+    glDrawElementsInstanced(GL_TRIANGLES,6 * SPHERE_THETA_STEPS * SPHERE_PHI_STEPS,GL_UNSIGNED_SHORT,(void*)0,PARTICLES);
+ 
   }
   // Swap buffers
   glfwSwapBuffers(window);
@@ -544,9 +540,8 @@ int main(int argc, char** argv) {
     curr_time = glfwGetTime()*1000;
 
     // Measure speed
-    double currentTime = glfwGetTime();
     nbFrames++;
-    if ( currentTime - lastTime >= 1.0 ){ // If last prinf() was more than 1 sec ago
+    if ( glfwGetTime() - lastTime >= 1.0 ){ // If last prinf() was more than 1 sec ago
       // printf and reset timer
           char wtitle[27];
       sprintf(wtitle, "SPH simulation %f ms/frame\n", 1000.0/double(nbFrames));
@@ -558,6 +553,22 @@ int main(int argc, char** argv) {
 
     update_particles();
     render();
+
+    	// check OpenGL error
+		GLenum err;
+		while ((err = glGetError()) != GL_NO_ERROR) {
+			char* error;
+ 
+                switch(err) {
+                        case GL_INVALID_OPERATION:      error=(char *)"INVALID_OPERATION";      break;
+                        case GL_INVALID_ENUM:           error=(char *)"INVALID_ENUM";           break;
+                        case GL_INVALID_VALUE:          error=(char *)"INVALID_VALUE";          break;
+                        case GL_OUT_OF_MEMORY:          error=(char *)"OUT_OF_MEMORY";          break;
+                        case GL_INVALID_FRAMEBUFFER_OPERATION:  error=(char *)"INVALID_FRAMEBUFFER_OPERATION";  break;
+                }
+
+			printf("OpenGL ERROR %s", error);
+		}
   }
   while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS &&
 		   glfwWindowShouldClose(window) == 0 );

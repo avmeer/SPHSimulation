@@ -20,7 +20,9 @@ out vec3 cam_vec_v;
 out vec3 normal_vec_v;
 
 void main() {
-  gl_Position = mvp_mat * vec4(position, 1);
+  vec3 Position = position;
+  Position.z=Position.z+5*gl_InstanceID;
+  gl_Position = mvp_mat * vec4(Position, 1);
 
   vec4 eye = mv_mat * vec4(position, 1);
 
