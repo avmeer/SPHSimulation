@@ -8,7 +8,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <cstring>
+#include <ctime>
 
 #include <string>
 #include <fstream>
@@ -20,7 +20,7 @@
 #define GROUND 0
 #define PARTICLE 1
 
-#define PARTICLES 100
+#define PARTICLES 2000
 #define SPHERE_THETA_STEPS 10
 #define SPHERE_PHI_STEPS 10
 
@@ -110,17 +110,18 @@ struct PALocs {
 } particle_a;
 
 struct CULocs {
-  GLint time;
+  GLint curr_time;
 } compute_u;
 
 GLuint vaods[2];
 
-float time;
+float curr_time;
 position* particle_locs;
 GLuint compute_vaods[1];
 GLuint position_buffer;
 
-bool test = true;
+double step;
+clock_t prev, next;
 
 void calculate_camera_pos() {
   eye.x = camera_angles.z * sinf(camera_angles.x) * sinf(camera_angles.y);
@@ -184,7 +185,7 @@ void update_particles() {
   glBindBuffer(GL_SHADER_STORAGE_BUFFER, position_buffer);
 
   glUseProgram(compute_shader);
-  glUniform1f(compute_u.time, time);
+  glUniform1f(compute_u.curr_time, curr_time);
   glDispatchCompute(PARTICLES / 10, 1, 1);
   glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
@@ -200,7 +201,20 @@ void update_particles() {
 }
 
 void render_timer(int value) {
-  time += 1;
+  next = clock();
+  double d = (next - prev) / (double)CLOCKS_PER_SEC;
+  prev = next;
+  double fps = 1.0 / d;
+
+  step += d;
+  if (step > 1) {
+    char wtitle[27];
+    sprintf(wtitle, "SPH simulation (FPS: %5.2f)", fps);
+    glutSetWindowTitle(wtitle);
+    step -= 1;
+  }
+
+  curr_time = prev;
   update_particles();
   glutPostRedisplay();
 
@@ -364,7 +378,7 @@ void setup_shaders() {
   );
   glLinkProgram(compute_shader);
 
-  compute_u.time = glGetUniformLocation(compute_shader, "time");
+  compute_u.curr_time = glGetUniformLocation(compute_shader, "curr_time");
 }
 
 void setup_buffers() {
@@ -461,20 +475,6 @@ void setup_buffers() {
   glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
   glEnableVertexAttribArray(0);
 
-  printf("particle_locs in setup:\n");
-  for (int i = 0; i < PARTICLES; i += 1) {
-    printf("%4.2f ", particle_locs[i].y);
-  }
-  printf("\n");
-
-  GLfloat buffer_data[4 * PARTICLES];
-  glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 4 * PARTICLES * sizeof(GLfloat), buffer_data);
-  printf("buffer in setup:\n");
-  for (int i = 1; i < 4 * PARTICLES; i += 4) {
-    printf("%4.2f ", buffer_data[i]);
-  }
-  printf("\n");
-
   glBindVertexArray(0);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
@@ -482,19 +482,24 @@ void setup_buffers() {
 void setup_particles() {
   particle_locs = new position[PARTICLES];
   int sp = sqrt(PARTICLES);
+  float offset = -15;
+  float width = 30;
+  float step = width / sp;
 
   for (int i = 0; i < sp; i += 1) {
     for (int j = 0; j < sp; j += 1) {
-      particle_locs[i * sp + j].x = i * 2 - sp;
+      particle_locs[i * sp + j].x = i * step + offset;
       particle_locs[i * sp + j].y = 2;
-      particle_locs[i * sp + j].z = j * 2 - sp;
+      particle_locs[i * sp + j].z = j * step + offset;
       particle_locs[i * sp + j].w = 1;
     }
   }
 }
 
 int main(int argc, char** argv) {
-  time = 0;
+  curr_time = 0;
+  step = 0;
+  prev = 0;
 
   setup_GLUT(argc, argv);
   setup_OGL();
