@@ -208,8 +208,8 @@ void render_timer(int value) {
 
   step += d;
   if (step > 1) {
-    char wtitle[27];
-    sprintf(wtitle, "SPH simulation (FPS: %5.2f)", fps);
+    char wtitle[33];
+    sprintf(wtitle, "SPH Fluid Simulation (FPS: %5.2f)", fps);
     glutSetWindowTitle(wtitle);
     step -= 1;
   }
