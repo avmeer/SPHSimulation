@@ -227,26 +227,6 @@ void update_particles() {
   }
 }
 
-void render_timer(int value) {
-  //next = clock();
-  double test = glfwGetTime()*1000;
-
-  /*double d = (next - prev) / (double)CLOCKS_PER_SEC;
-  printf("%f | %f \n",curr_time, test);
-  prev = next;
-  double fps = 1.0 / d;
-
-  step += d;
-  if (step > 1) {
-    char wtitle[27];
-    sprintf(wtitle, "SPH simulation (FPS: %5.2f)", fps);
-    glfwSetWindowTitle(window,wtitle);
-    step -= 1;
-  }*/
-
-  curr_time = test;
-  update_particles();
-}
 
 void render() {
 
@@ -561,7 +541,22 @@ int main(int argc, char** argv) {
  int nbFrames = 0;
 
   do{
-    render_timer(0);
+    curr_time = glfwGetTime()*1000;
+
+    // Measure speed
+    double currentTime = glfwGetTime();
+    nbFrames++;
+    if ( currentTime - lastTime >= 1.0 ){ // If last prinf() was more than 1 sec ago
+      // printf and reset timer
+          char wtitle[27];
+      sprintf(wtitle, "SPH simulation %f ms/frame\n", 1000.0/double(nbFrames));
+      glfwSetWindowTitle(window,wtitle);
+      nbFrames = 0;
+      lastTime += 1.0;
+    }
+
+
+    update_particles();
     render();
   }
   while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS &&
