@@ -188,25 +188,15 @@ void update_particles() {
   glDispatchCompute(PARTICLES / 10, 1, 1);
   glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-  if (test) {
-    GLfloat buffer_data[4 * PARTICLES];
-    glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 4 * PARTICLES * sizeof(GLfloat), buffer_data);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-    printf("buffer in update:\n");
-    for (int i = 1; i < 4 * PARTICLES; i += 4) {
-      printf("%4.2f ", buffer_data[i]);
-    }
-    printf("\n");
-    test = false;
+  GLfloat buffer_data[4 * PARTICLES];
+  glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 4 * PARTICLES * sizeof(GLfloat), buffer_data);
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+  for (int i = 0; i < 4 * PARTICLES; i += 4) {
+    particle_locs[i / 4].x = buffer_data[i + 0];
+    particle_locs[i / 4].y = buffer_data[i + 1];
+    particle_locs[i / 4].z = buffer_data[i + 2];
+    particle_locs[i / 4].w = buffer_data[i + 3];
   }
-
-  // for (int i = 0; i < PARTICLES; i += 1) {
-  //   particle_locs[i].y = cos(
-  //     time * 0.1 + 
-  //     particle_locs[i].x * 0.5 +
-  //     particle_locs[i].z * 0.5
-  //   ) + 2;
-  // }
 }
 
 void render_timer(int value) {
