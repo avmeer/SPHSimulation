@@ -1,14 +1,16 @@
-#define GLUT_DISABLE_ATEXIT_HACK
+// Include GLEW
 #include <GL/glew.h>
-#include <GL/freeglut.h>
-#include <GL/glu.h>
+
+
+// Include GLFW
+#include <GLFW/glfw3.h>
+GLFWwindow* window;
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <ctime>
 
 #include <string>
 #include <fstream>
@@ -121,7 +123,6 @@ GLuint compute_vaods[1];
 GLuint position_buffer;
 
 double step;
-clock_t prev, next;
 
 void calculate_camera_pos() {
   eye.x = camera_angles.z * sinf(camera_angles.x) * sinf(camera_angles.y);
@@ -129,56 +130,82 @@ void calculate_camera_pos() {
   eye.z = camera_angles.z * -cosf(camera_angles.x) * sinf(camera_angles.y);
 }
 
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+	camera_angles.z -= yoffset * 0.5;
+
+	//limit the camera radius to some reasonable values so the user can't get lost
+	if(camera_angles.z < 1.0) 
+		camera_angles.z = 1.0;
+	if(camera_angles.z > 50.0) 
+		camera_angles.z = 50.0;
+
+	calculate_camera_pos();
+}
+
+static void mouse_click_callback(GLFWwindow* window, int button, int action, int mods)
+{
+    if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        if(GLFW_PRESS == action)
+            l_mouse = true;
+        else if(GLFW_RELEASE == action)
+            l_mouse = false;
+    }
+
+	if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+        if(GLFW_PRESS == action)
+            r_mouse = true;
+        else if(GLFW_RELEASE == action)
+            r_mouse = false;
+    }
+}
+
+static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
+{
+	double x = xpos;
+	double y = ypos;
+
+	if(l_mouse == true)
+    {
+		//printf("Dragging (%f,%f)\n",x,y);
+        camera_angles.x += (x - mouse.x)*0.005;
+        camera_angles.y += (y - mouse.y)*0.005;
+
+        // make sure that phi stays within the range (0, M_PI)
+        if(camera_angles.y <= 0)
+            camera_angles.y = 0+0.001;
+        if(camera_angles.y >= M_PI)
+            camera_angles.y = M_PI-0.001;
+        
+
+        calculate_camera_pos();
+    } else if(r_mouse == true) {
+        //for the right mouse button, just determine how much the mouse has moved total.
+        //not the best "zoom" behavior -- if X change is positive and Y change is negative,
+        //(along the X = Y line), nothing will happen!! but it's ok if you zoom by
+        //moving left<-->right or up<-->down, which works for most people i think.
+        double totalChangeSq = (x - mouse.x) + (y - mouse.y);
+        camera_angles.z += totalChangeSq*0.01;
+        
+
+        //limit the camera radius to some reasonable values so the user can't get lost
+        if(camera_angles.z < 1.0) 
+            camera_angles.z = 1.0;
+        if(camera_angles.z > 50.0) 
+            camera_angles.z = 50.0;
+        
+        calculate_camera_pos();
+    }
+
+    mouse.x = x;
+    mouse.y = y;
+}
+
 void resize(int w, int h) {
   window_width = w;
   window_height = h;
 
   glViewport(0, 0, w, h);
-}
-
-void mouse_act(int button, int state, int x, int y) {
-  if (button == GLUT_LEFT_BUTTON) {
-    l_mouse = state;
-  } else if (button == GLUT_RIGHT_BUTTON) {
-    r_mouse = state;
-  }
-
-  mouse.x = x;
-  mouse.y = y;
-}
-
-void mouse_move(int x, int y) {
-  if (l_mouse == GLUT_DOWN) {
-    camera_angles.x += (x - mouse.x) * 0.005;
-    camera_angles.y += (y - mouse.y) * 0.005;
-
-    if (camera_angles.y <= 0) {
-      camera_angles.y = 0.001;
-    } else if (camera_angles.y >= M_PI) {
-      camera_angles.y = M_PI - 0.001;
-    }
-
-    calculate_camera_pos();
-  } else if (r_mouse == GLUT_DOWN) {
-    camera_angles.z += (y - mouse.y) * 0.1;
-
-    if (camera_angles.z < 1) {
-      camera_angles.z = 1;
-    } else if (camera_angles.z > 50) {
-      camera_angles.z = 50;
-    }
-
-    calculate_camera_pos();
-  }
-
-  mouse.x = x;
-  mouse.y = y;
-}
-
-void normal_keys(unsigned char key, int x, int y) {
-  if (key == 'q' || key == 'Q' || key == 27) {
-    exit(0);
-  }
 }
 
 void update_particles() {
@@ -201,8 +228,11 @@ void update_particles() {
 }
 
 void render_timer(int value) {
-  next = clock();
-  double d = (next - prev) / (double)CLOCKS_PER_SEC;
+  //next = clock();
+  double test = glfwGetTime()*1000;
+
+  /*double d = (next - prev) / (double)CLOCKS_PER_SEC;
+  printf("%f | %f \n",curr_time, test);
   prev = next;
   double fps = 1.0 / d;
 
@@ -210,30 +240,31 @@ void render_timer(int value) {
   if (step > 1) {
     char wtitle[27];
     sprintf(wtitle, "SPH simulation (FPS: %5.2f)", fps);
-    glutSetWindowTitle(wtitle);
+    glfwSetWindowTitle(window,wtitle);
     step -= 1;
-  }
+  }*/
 
-  curr_time = prev;
+  curr_time = test;
   update_particles();
-  glutPostRedisplay();
-
-  glutTimerFunc((unsigned int)(1000.0 / 60.0), render_timer, 0);
 }
 
 void render() {
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  
   float ratio = (float)window_width / (float)window_height;
   glm::mat3 normal_mat;
   glm::mat4 m_mat, v_mat, p_mat, mv_mat, mvp_mat;
+  
 
-  p_mat = glm::perspective(45.0f, ratio, 0.001f, 100.0f);
+  p_mat = glm::perspective(45.0f, 4.0f / 3.0f, 0.1f, 100.0f);
   v_mat = glm::lookAt(eye, look_at, up);
   mv_mat = v_mat * m_mat;
   mvp_mat = p_mat * mv_mat;
   normal_mat = glm::transpose(glm::inverse(glm::mat3(mv_mat)));
 
+  
   ground_shader->useProgram();
 
   glUniformMatrix4fv(ground_u.mv_mat, 1, GL_FALSE, &mv_mat[0][0]);
@@ -289,25 +320,43 @@ void render() {
       (void*)0
     );
   }
+  // Swap buffers
+  glfwSwapBuffers(window);
+  glfwPollEvents();
 
-  glutSwapBuffers();
 }
 
 void setup_GLUT(int argc, char** argv) {
-  glutInit(&argc, argv);
-  glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
-  glutInitContextVersion(4, 3);
-  glutInitContextFlags(GLUT_CORE_PROFILE | GLUT_DEBUG);
-  glutInitWindowPosition(50, 50);
-  glutInitWindowSize(window_width, window_height);
-  glutCreateWindow("SPH Fluid Simulation");
+// Initialise GLFW
+	if( !glfwInit() )
+	{
+		fprintf( stderr, "Failed to initialize GLFW\n" );
+		getchar();
+    return;
+	}
 
-  glutKeyboardFunc(normal_keys);
-  glutDisplayFunc(render);
-  glutReshapeFunc(resize);
-  glutMouseFunc(mouse_act);
-  glutMotionFunc(mouse_move);
-  glutTimerFunc((unsigned int)(1000.0 / 60.0), render_timer, 0);
+	glfwWindowHint(GLFW_SAMPLES, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // To make MacOS happy; should not be needed
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+	// Open a window and create its OpenGL context
+	window = glfwCreateWindow( 1024, 768, "SPH simulation", NULL, NULL);
+	if( window == NULL ){
+		fprintf( stderr, "Failed to open GLFW window. If you have an Intel GPU, they are not 3.3 compatible. Try the 2.1 version of the tutorials.\n" );
+		getchar();
+		glfwTerminate();
+		return;
+	}else{
+		fprintf( stdout, "\nSuccessfully opened GLFW window\n" );
+	}
+	glfwMakeContextCurrent(window);
+
+	//setup callbacks
+	glfwSetMouseButtonCallback(window, mouse_click_callback);
+	glfwSetCursorPosCallback(window, cursor_position_callback);
+	glfwSetScrollCallback(window, scroll_callback);
 }
 
 void setup_OGL() {
@@ -499,7 +548,6 @@ void setup_particles() {
 int main(int argc, char** argv) {
   curr_time = 0;
   step = 0;
-  prev = 0;
 
   setup_GLUT(argc, argv);
   setup_OGL();
@@ -509,10 +557,19 @@ int main(int argc, char** argv) {
 
   calculate_camera_pos();
 
-  glutMainLoop();
+  double lastTime = glfwGetTime();
+ int nbFrames = 0;
+
+  do{
+    render_timer(0);
+    render();
+  }
+  while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS &&
+		   glfwWindowShouldClose(window) == 0 );
 
   delete ground_shader;
   delete particle_shader;
 
+  glfwTerminate();
   return 0;
 }
