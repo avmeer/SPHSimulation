@@ -279,9 +279,9 @@ void render() {
       glm::vec4(0, 1, 0, 0),
       glm::vec4(0, 0, 1, 0),
       glm::vec4(
-        particle_locs[i].x,
-        particle_locs[i].y,
-        particle_locs[i].z,
+        0,
+        0,
+        0,
       1)
     );
     mv_mat = v_mat * m_mat;
@@ -293,6 +293,8 @@ void render() {
     glUniformMatrix3fv(particle_u.normal_mat, 1, GL_FALSE, &normal_mat[0][0]);
 
     glBindVertexArray(vaods[PARTICLE]);
+
+
     glDrawElementsInstanced(GL_TRIANGLES,6 * SPHERE_THETA_STEPS * SPHERE_PHI_STEPS,GL_UNSIGNED_SHORT,(void*)0,PARTICLES);
  
   }
@@ -410,6 +412,26 @@ void setup_buffers() {
   glGenVertexArrays(2, vaods);
   GLuint vbods[2];
 
+  // Buffer for the compute shader.
+  glGenBuffers(1, &position_buffer);
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, position_buffer);
+  glBufferData(
+    GL_SHADER_STORAGE_BUFFER,
+    PARTICLES * sizeof(position),
+    &particle_locs[0],
+    GL_DYNAMIC_DRAW
+  );
+
+  glGenVertexArrays(1, compute_vaods);
+  glBindVertexArray(compute_vaods[0]);
+
+  glBindBuffer(GL_ARRAY_BUFFER, position_buffer);
+  glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(0);
+
+  glBindVertexArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
   // The ground.
   glBindVertexArray(vaods[GROUND]);
   glGenBuffers(2, vbods);
@@ -483,25 +505,13 @@ void setup_buffers() {
   glEnableVertexAttribArray(particle_a.normal);
   glVertexAttribPointer(particle_a.normal, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
 
-  // Buffer for the compute shader.
-  glGenBuffers(1, &position_buffer);
-  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, position_buffer);
-  glBufferData(
-    GL_SHADER_STORAGE_BUFFER,
-    PARTICLES * sizeof(position),
-    &particle_locs[0],
-    GL_DYNAMIC_DRAW
-  );
-
-  glGenVertexArrays(1, compute_vaods);
-  glBindVertexArray(compute_vaods[0]);
 
   glBindBuffer(GL_ARRAY_BUFFER, position_buffer);
-  glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(2,3, GL_FLOAT, GL_FALSE,3*sizeof(GL_FLOAT),0);
+  glEnableVertexAttribArray(2);
+  glVertexAttribDivisor(2, 1);
 
-  glBindVertexArray(0);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  
 }
 
 void setup_particles() {
