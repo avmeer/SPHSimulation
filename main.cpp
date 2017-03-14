@@ -263,31 +263,20 @@ void render() {
   glUniform3fv(particle_u.mat_Kd, 1, &particle_mat_d[0]);
   glUniform1f(particle_u.mat_shiny, particle_mat_sh);
 
-  for (int i = 0; i < 1; i += 1) {
-    m_mat = glm::mat4(
-      glm::vec4(1, 0, 0, 0),
-      glm::vec4(0, 1, 0, 0),
-      glm::vec4(0, 0, 1, 0),
-      glm::vec4(
-        0,
-        0,
-        0,
-      1)
-    );
-    mv_mat = v_mat * m_mat;
-    mvp_mat = p_mat * mv_mat;
-    normal_mat = glm::transpose(glm::inverse(glm::mat3(mv_mat)));
+  m_mat = glm::mat4(1.0f);
+  mv_mat = v_mat * m_mat;
+  mvp_mat = p_mat * mv_mat;
+  normal_mat = glm::transpose(glm::inverse(glm::mat3(mv_mat)));
 
-    glUniformMatrix4fv(particle_u.mv_mat, 1, GL_FALSE, &mv_mat[0][0]);
-    glUniformMatrix4fv(particle_u.mvp_mat, 1, GL_FALSE, &mvp_mat[0][0]);
-    glUniformMatrix3fv(particle_u.normal_mat, 1, GL_FALSE, &normal_mat[0][0]);
+  glUniformMatrix4fv(particle_u.mv_mat, 1, GL_FALSE, &mv_mat[0][0]);
+  glUniformMatrix4fv(particle_u.mvp_mat, 1, GL_FALSE, &mvp_mat[0][0]);
+  glUniformMatrix3fv(particle_u.normal_mat, 1, GL_FALSE, &normal_mat[0][0]);
 
-    glBindVertexArray(vaods[PARTICLE]);
+  glBindVertexArray(vaods[PARTICLE]);
 
 
-    glDrawElementsInstanced(GL_TRIANGLES,6 * SPHERE_THETA_STEPS * SPHERE_PHI_STEPS,GL_UNSIGNED_SHORT,(void*)0,PARTICLES);
- 
-  }
+  glDrawElementsInstanced(GL_TRIANGLES,6 * SPHERE_THETA_STEPS * SPHERE_PHI_STEPS,GL_UNSIGNED_SHORT,(void*)0,PARTICLES);
+
   // Swap buffers
   glfwSwapBuffers(window);
   glfwPollEvents();
@@ -521,39 +510,9 @@ void setup_particles() {
   }
 }
 
-int main(int argc, char** argv) {
-  curr_time = 0;
-  step = 0;
 
-  setup_GLUT(argc, argv);
-  setup_OGL();
-  setup_shaders();
-  setup_particles();
-  setup_buffers();
-
-  calculate_camera_pos();
-
-  double lastTime = glfwGetTime();
- int nbFrames = 0;
-
-  do{
-    curr_time = glfwGetTime()*1000;
-
-    // Measure speed
-    nbFrames++;
-    if ( glfwGetTime() - lastTime >= 1.0 ){ // If last prinf() was more than 1 sec ago
-      // printf and reset timer
-          char wtitle[27];
-      sprintf(wtitle, "SPH simulation %f ms/frame\n", 1000.0/double(nbFrames));
-      glfwSetWindowTitle(window,wtitle);
-      nbFrames = 0;
-      lastTime += 1.0;
-    }
-
-    update_particles();
-    render();
-
-    	// check OpenGL error
+void check_error(){
+  	// check OpenGL error
 		GLenum err;
 		while ((err = glGetError()) != GL_NO_ERROR) {
 			char* error;
@@ -568,6 +527,39 @@ int main(int argc, char** argv) {
 
 			printf("OpenGL ERROR %s", error);
 		}
+}
+
+int main(int argc, char** argv) {
+  curr_time = 0;
+  step = 0;
+
+  setup_GLUT(argc, argv);
+  setup_OGL();
+  setup_shaders();
+  setup_particles();
+  setup_buffers();
+
+  calculate_camera_pos();
+  double lastTime = glfwGetTime();
+  int nbFrames = 0;
+
+  do{
+    curr_time = glfwGetTime()*1000;
+
+    // Measure speed
+    nbFrames++;
+    if ( glfwGetTime() - lastTime >= 1.0 ){ // If last prinf() was more than 1 sec ago
+      // printf and reset timer
+      char wtitle[27];
+      sprintf(wtitle, "SPH simulation %f ms/frame\n", 1000.0/double(nbFrames));
+      glfwSetWindowTitle(window,wtitle);
+      nbFrames = 0;
+      lastTime += 1.0;
+    }
+
+    update_particles();
+    render();
+    check_error();
   }
   while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS &&
 		   glfwWindowShouldClose(window) == 0 );

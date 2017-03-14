@@ -21,18 +21,12 @@ out vec3 cam_vec_v;
 out vec3 normal_vec_v;
 
 void main() {
-  vec3 Position = position;
-  Position.z=Position.z+5*gl_InstanceID;
-  //gl_Position = mvp_mat * vec4(Position, 1);
-
-
-
 
   mat4 translate;
 	translate[0]=vec4(1.0,0.0,0.0,0.0);
 	translate[1]=vec4(0.0,1.0,0.0,0);
 	translate[2]=vec4(0.0,0.0,1.0,0);
-	translate[3]=vec4(offset[0],offset[1],offset[2],1.0);
+	translate[3]=vec4(offset.x,offset.y,offset.z,1.0);
 
   gl_Position = mvp_mat* translate* vec4(position,1); 
 
