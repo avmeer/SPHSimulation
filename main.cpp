@@ -507,7 +507,7 @@ void setup_buffers() {
 
 
   glBindBuffer(GL_ARRAY_BUFFER, position_buffer);
-  glVertexAttribPointer(2,3, GL_FLOAT, GL_FALSE,3*sizeof(GL_FLOAT),0);
+  glVertexAttribPointer(2,3, GL_FLOAT, GL_FALSE,4*sizeof(GL_FLOAT),0);
   glEnableVertexAttribArray(2);
   glVertexAttribDivisor(2, 1);
 
