@@ -1,14 +1,15 @@
-#define GLUT_DISABLE_ATEXIT_HACK
+// Include GLEW
 #include <GL/glew.h>
-#include <GL/freeglut.h>
-#include <GL/glu.h>
+
+// Include GLFW
+#include <GLFW/glfw3.h>
+GLFWwindow* window;
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <ctime>
 
 #include <string>
 #include <fstream>
@@ -121,12 +122,82 @@ GLuint compute_vaods[1];
 GLuint position_buffer;
 
 double step;
-clock_t prev, next;
 
 void calculate_camera_pos() {
   eye.x = camera_angles.z * sinf(camera_angles.x) * sinf(camera_angles.y);
   eye.y = camera_angles.z * -cosf(camera_angles.y);
   eye.z = camera_angles.z * -cosf(camera_angles.x) * sinf(camera_angles.y);
+}
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+	camera_angles.z -= yoffset * 0.5;
+
+	//limit the camera radius to some reasonable values so the user can't get lost
+	if(camera_angles.z < 1.0) 
+		camera_angles.z = 1.0;
+	if(camera_angles.z > 50.0) 
+		camera_angles.z = 50.0;
+
+	calculate_camera_pos();
+}
+
+static void mouse_click_callback(GLFWwindow* window, int button, int action, int mods)
+{
+    if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        if(GLFW_PRESS == action)
+            l_mouse = true;
+        else if(GLFW_RELEASE == action)
+            l_mouse = false;
+    }
+
+	if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+        if(GLFW_PRESS == action)
+            r_mouse = true;
+        else if(GLFW_RELEASE == action)
+            r_mouse = false;
+    }
+}
+
+static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
+{
+	double x = xpos;
+	double y = ypos;
+
+	if(l_mouse == true)
+    {
+		//printf("Dragging (%f,%f)\n",x,y);
+        camera_angles.x += (x - mouse.x)*0.005;
+        camera_angles.y += (y - mouse.y)*0.005;
+
+        // make sure that phi stays within the range (0, M_PI)
+        if(camera_angles.y <= 0)
+            camera_angles.y = 0+0.001;
+        if(camera_angles.y >= M_PI)
+            camera_angles.y = M_PI-0.001;
+        
+
+        calculate_camera_pos();
+    } else if(r_mouse == true) {
+        //for the right mouse button, just determine how much the mouse has moved total.
+        //not the best "zoom" behavior -- if X change is positive and Y change is negative,
+        //(along the X = Y line), nothing will happen!! but it's ok if you zoom by
+        //moving left<-->right or up<-->down, which works for most people i think.
+        double totalChangeSq = (x - mouse.x) + (y - mouse.y);
+        camera_angles.z += totalChangeSq*0.01;
+        
+
+        //limit the camera radius to some reasonable values so the user can't get lost
+        if(camera_angles.z < 1.0) 
+            camera_angles.z = 1.0;
+        if(camera_angles.z > 50.0) 
+            camera_angles.z = 50.0;
+        
+        calculate_camera_pos();
+    }
+
+    mouse.x = x;
+    mouse.y = y;
 }
 
 void resize(int w, int h) {
@@ -136,51 +207,6 @@ void resize(int w, int h) {
   glViewport(0, 0, w, h);
 }
 
-void mouse_act(int button, int state, int x, int y) {
-  if (button == GLUT_LEFT_BUTTON) {
-    l_mouse = state;
-  } else if (button == GLUT_RIGHT_BUTTON) {
-    r_mouse = state;
-  }
-
-  mouse.x = x;
-  mouse.y = y;
-}
-
-void mouse_move(int x, int y) {
-  if (l_mouse == GLUT_DOWN) {
-    camera_angles.x += (x - mouse.x) * 0.005;
-    camera_angles.y += (y - mouse.y) * 0.005;
-
-    if (camera_angles.y <= 0) {
-      camera_angles.y = 0.001;
-    } else if (camera_angles.y >= M_PI) {
-      camera_angles.y = M_PI - 0.001;
-    }
-
-    calculate_camera_pos();
-  } else if (r_mouse == GLUT_DOWN) {
-    camera_angles.z += (y - mouse.y) * 0.1;
-
-    if (camera_angles.z < 1) {
-      camera_angles.z = 1;
-    } else if (camera_angles.z > 50) {
-      camera_angles.z = 50;
-    }
-
-    calculate_camera_pos();
-  }
-
-  mouse.x = x;
-  mouse.y = y;
-}
-
-void normal_keys(unsigned char key, int x, int y) {
-  if (key == 'q' || key == 'Q' || key == 27) {
-    exit(0);
-  }
-}
-
 void update_particles() {
   glBindBuffer(GL_SHADER_STORAGE_BUFFER, position_buffer);
 
@@ -188,52 +214,25 @@ void update_particles() {
   glUniform1f(compute_u.curr_time, curr_time);
   glDispatchCompute(PARTICLES / 10, 1, 1);
   glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
-  GLfloat buffer_data[4 * PARTICLES];
-  glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 4 * PARTICLES * sizeof(GLfloat), buffer_data);
-  glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-  for (int i = 0; i < 4 * PARTICLES; i += 4) {
-    particle_locs[i / 4].x = buffer_data[i + 0];
-    particle_locs[i / 4].y = buffer_data[i + 1];
-    particle_locs[i / 4].z = buffer_data[i + 2];
-    particle_locs[i / 4].w = buffer_data[i + 3];
-  }
-}
-
-void render_timer(int value) {
-  next = clock();
-  double d = (next - prev) / (double)CLOCKS_PER_SEC;
-  prev = next;
-  double fps = 1.0 / d;
-
-  step += d;
-  if (step > 1) {
-    char wtitle[33];
-    sprintf(wtitle, "SPH Fluid Simulation (FPS: %5.2f)", fps);
-    glutSetWindowTitle(wtitle);
-    step -= 1;
-  }
-
-  curr_time = prev;
-  update_particles();
-  glutPostRedisplay();
-
-  glutTimerFunc((unsigned int)(1000.0 / 60.0), render_timer, 0);
 }
 
 void render() {
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  
   float ratio = (float)window_width / (float)window_height;
   glm::mat3 normal_mat;
   glm::mat4 m_mat, v_mat, p_mat, mv_mat, mvp_mat;
+  
 
-  p_mat = glm::perspective(45.0f, ratio, 0.001f, 100.0f);
+  p_mat = glm::perspective(45.0f, 4.0f / 3.0f, 0.1f, 100.0f);
   v_mat = glm::lookAt(eye, look_at, up);
   mv_mat = v_mat * m_mat;
   mvp_mat = p_mat * mv_mat;
   normal_mat = glm::transpose(glm::inverse(glm::mat3(mv_mat)));
 
+  
   ground_shader->useProgram();
 
   glUniformMatrix4fv(ground_u.mv_mat, 1, GL_FALSE, &mv_mat[0][0]);
@@ -262,52 +261,57 @@ void render() {
   glUniform3fv(particle_u.mat_Kd, 1, &particle_mat_d[0]);
   glUniform1f(particle_u.mat_shiny, particle_mat_sh);
 
-  for (int i = 0; i < PARTICLES; i += 1) {
-    m_mat = glm::mat4(
-      glm::vec4(1, 0, 0, 0),
-      glm::vec4(0, 1, 0, 0),
-      glm::vec4(0, 0, 1, 0),
-      glm::vec4(
-        particle_locs[i].x,
-        particle_locs[i].y,
-        particle_locs[i].z,
-      1)
-    );
-    mv_mat = v_mat * m_mat;
-    mvp_mat = p_mat * mv_mat;
-    normal_mat = glm::transpose(glm::inverse(glm::mat3(mv_mat)));
+  m_mat = glm::mat4(1.0f);
+  mv_mat = v_mat * m_mat;
+  mvp_mat = p_mat * mv_mat;
+  normal_mat = glm::transpose(glm::inverse(glm::mat3(mv_mat)));
 
-    glUniformMatrix4fv(particle_u.mv_mat, 1, GL_FALSE, &mv_mat[0][0]);
-    glUniformMatrix4fv(particle_u.mvp_mat, 1, GL_FALSE, &mvp_mat[0][0]);
-    glUniformMatrix3fv(particle_u.normal_mat, 1, GL_FALSE, &normal_mat[0][0]);
+  glUniformMatrix4fv(particle_u.mv_mat, 1, GL_FALSE, &mv_mat[0][0]);
+  glUniformMatrix4fv(particle_u.mvp_mat, 1, GL_FALSE, &mvp_mat[0][0]);
+  glUniformMatrix3fv(particle_u.normal_mat, 1, GL_FALSE, &normal_mat[0][0]);
 
-    glBindVertexArray(vaods[PARTICLE]);
-    glDrawElements(
-      GL_TRIANGLES,
-      6 * SPHERE_THETA_STEPS * SPHERE_PHI_STEPS,
-      GL_UNSIGNED_SHORT,
-      (void*)0
-    );
-  }
+  glBindVertexArray(vaods[PARTICLE]);
 
-  glutSwapBuffers();
+
+  glDrawElementsInstanced(GL_TRIANGLES,6 * SPHERE_THETA_STEPS * SPHERE_PHI_STEPS,GL_UNSIGNED_SHORT,(void*)0,PARTICLES);
+
+  // Swap buffers
+  glfwSwapBuffers(window);
+  glfwPollEvents();
+
 }
 
 void setup_GLUT(int argc, char** argv) {
-  glutInit(&argc, argv);
-  glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
-  glutInitContextVersion(4, 3);
-  glutInitContextFlags(GLUT_CORE_PROFILE | GLUT_DEBUG);
-  glutInitWindowPosition(50, 50);
-  glutInitWindowSize(window_width, window_height);
-  glutCreateWindow("SPH Fluid Simulation");
+// Initialise GLFW
+	if( !glfwInit() )
+	{
+		fprintf( stderr, "Failed to initialize GLFW\n" );
+		getchar();
+    return;
+	}
 
-  glutKeyboardFunc(normal_keys);
-  glutDisplayFunc(render);
-  glutReshapeFunc(resize);
-  glutMouseFunc(mouse_act);
-  glutMotionFunc(mouse_move);
-  glutTimerFunc((unsigned int)(1000.0 / 60.0), render_timer, 0);
+	glfwWindowHint(GLFW_SAMPLES, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // To make MacOS happy; should not be needed
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+	// Open a window and create its OpenGL context
+	window = glfwCreateWindow( 1024, 768, "SPH simulation", NULL, NULL);
+	if( window == NULL ){
+		fprintf( stderr, "Failed to open GLFW window. If you have an Intel GPU, they are not 3.3 compatible. Try the 2.1 version of the tutorials.\n" );
+		getchar();
+		glfwTerminate();
+		return;
+	}else{
+		fprintf( stdout, "\nSuccessfully opened GLFW window\n" );
+	}
+	glfwMakeContextCurrent(window);
+
+	//setup callbacks
+	glfwSetMouseButtonCallback(window, mouse_click_callback);
+	glfwSetCursorPosCallback(window, cursor_position_callback);
+	glfwSetScrollCallback(window, scroll_callback);
 }
 
 void setup_OGL() {
@@ -385,6 +389,26 @@ void setup_buffers() {
   glGenVertexArrays(2, vaods);
   GLuint vbods[2];
 
+  // Buffer for the compute shader.
+  glGenBuffers(1, &position_buffer);
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, position_buffer);
+  glBufferData(
+    GL_SHADER_STORAGE_BUFFER,
+    PARTICLES * sizeof(position),
+    &particle_locs[0],
+    GL_DYNAMIC_DRAW
+  );
+
+  glGenVertexArrays(1, compute_vaods);
+  glBindVertexArray(compute_vaods[0]);
+
+  glBindBuffer(GL_ARRAY_BUFFER, position_buffer);
+  glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(0);
+
+  glBindVertexArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
   // The ground.
   glBindVertexArray(vaods[GROUND]);
   glGenBuffers(2, vbods);
@@ -458,25 +482,13 @@ void setup_buffers() {
   glEnableVertexAttribArray(particle_a.normal);
   glVertexAttribPointer(particle_a.normal, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
 
-  // Buffer for the compute shader.
-  glGenBuffers(1, &position_buffer);
-  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, position_buffer);
-  glBufferData(
-    GL_SHADER_STORAGE_BUFFER,
-    PARTICLES * sizeof(position),
-    &particle_locs[0],
-    GL_DYNAMIC_DRAW
-  );
-
-  glGenVertexArrays(1, compute_vaods);
-  glBindVertexArray(compute_vaods[0]);
 
   glBindBuffer(GL_ARRAY_BUFFER, position_buffer);
-  glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(2,3, GL_FLOAT, GL_FALSE,4*sizeof(GL_FLOAT),0);
+  glEnableVertexAttribArray(2);
+  glVertexAttribDivisor(2, 1);
 
-  glBindVertexArray(0);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  
 }
 
 void setup_particles() {
@@ -496,10 +508,28 @@ void setup_particles() {
   }
 }
 
+
+void check_error(){
+  	// check OpenGL error
+		GLenum err;
+		while ((err = glGetError()) != GL_NO_ERROR) {
+			char* error;
+ 
+                switch(err) {
+                        case GL_INVALID_OPERATION:      error=(char *)"INVALID_OPERATION";      break;
+                        case GL_INVALID_ENUM:           error=(char *)"INVALID_ENUM";           break;
+                        case GL_INVALID_VALUE:          error=(char *)"INVALID_VALUE";          break;
+                        case GL_OUT_OF_MEMORY:          error=(char *)"OUT_OF_MEMORY";          break;
+                        case GL_INVALID_FRAMEBUFFER_OPERATION:  error=(char *)"INVALID_FRAMEBUFFER_OPERATION";  break;
+                }
+
+			printf("OpenGL ERROR %s", error);
+		}
+}
+
 int main(int argc, char** argv) {
   curr_time = 0;
   step = 0;
-  prev = 0;
 
   setup_GLUT(argc, argv);
   setup_OGL();
@@ -508,11 +538,33 @@ int main(int argc, char** argv) {
   setup_buffers();
 
   calculate_camera_pos();
+  double lastTime = glfwGetTime();
+  int nbFrames = 0;
 
-  glutMainLoop();
+  do{
+    curr_time = glfwGetTime()*1000;
+
+    // Measure speed
+    nbFrames++;
+    if ( glfwGetTime() - lastTime >= 1.0 ){ // If last prinf() was more than 1 sec ago
+      // printf and reset timer
+      char wtitle[27];
+      sprintf(wtitle, "SPH simulation %f ms/frame\n", 1000.0/double(nbFrames));
+      glfwSetWindowTitle(window,wtitle);
+      nbFrames = 0;
+      lastTime += 1.0;
+    }
+
+    update_particles();
+    render();
+    check_error();
+  }
+  while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS &&
+		   glfwWindowShouldClose(window) == 0 );
 
   delete ground_shader;
   delete particle_shader;
 
+  glfwTerminate();
   return 0;
 }

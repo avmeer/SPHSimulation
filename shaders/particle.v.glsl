@@ -14,13 +14,21 @@ uniform LightInfo light;
 
 layout (location = 0) in vec3 position;
 layout (location = 1) in vec3 normal;
+layout (location = 2) in vec4 offset; // Position of the center of the particule
 
 out vec3 light_vec_v;
 out vec3 cam_vec_v;
 out vec3 normal_vec_v;
 
 void main() {
-  gl_Position = mvp_mat * vec4(position, 1);
+
+  mat4 translate;
+	translate[0]=vec4(1.0,0.0,0.0,0.0);
+	translate[1]=vec4(0.0,1.0,0.0,0);
+	translate[2]=vec4(0.0,0.0,1.0,0);
+	translate[3]=vec4(offset.x,offset.y,offset.z,1.0);
+
+  gl_Position = mvp_mat* translate* vec4(position,1); 
 
   vec4 eye = mv_mat * vec4(position, 1);
 
