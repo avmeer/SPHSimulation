@@ -24,6 +24,14 @@
 TARGET = sph
 OBJECTS = main.o src/OpenGLUtils.o src/ShaderProgram.o src/ShaderUtils.o
 
+IN_LAB = 1
+
+ifeq ($(IN_LAB), 1)
+	CXX = C:/Rtools/mingw_64\bin\g++.exe
+	INCPATH += -IC:/sw/opengl/include -I./include
+	LIBPATH += -LC:/sw/opengl/lib -L./lib
+endif
+
 ifeq ($(OS), Windows_NT)
 	CFLAGS = -Wall -g
 
@@ -36,8 +44,8 @@ endif
 #############################
 ifeq ($(OS), Windows_NT)
 	LIBS += -lglfw3dll
-	else
-		LIBS += -lglfw
+else
+	LIBS += -lglfw
 endif
 
 #############################
@@ -45,10 +53,8 @@ endif
 #############################
 ifeq ($(OS), Windows_NT)
 	LIBS +=  -lopengl32 -lglut -lglu32 
-
-	# Linux and all other builds
-    else
-		LIBS += -lGL -lglut -lGLU
+else # Linux and all other builds
+	LIBS += -lGL -lglut -lGLU
 endif
 
 #############################
@@ -56,8 +62,8 @@ endif
 #############################
 ifeq ($(OS), Windows_NT)
 	LIBS += -lglew32
-	else
-		LIBS += -lGLEW
+else
+	LIBS += -lGLEW
 endif
 
 
@@ -82,3 +88,9 @@ clean:
 
 $(TARGET): $(OBJECTS) 
 	$(CXX) $(CFLAGS) $(INCPATH) -o $@ $^ $(LIBPATH) $(LIBS)
+
+run: $(TARGET)
+	sph.exe
+
+debug: $(TARGET)
+	C:\Strawberry\c\bin\gdb.exe sph.exe
