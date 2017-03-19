@@ -1,5 +1,7 @@
 #version 430
 
+uniform int num_particles;
+uniform float prev_time;
 uniform float curr_time;
 uniform int flip;
 uniform int phase;
@@ -98,6 +100,7 @@ void main() {
   float mass = 0.01;
   vec4 gravity = vec4(0, -0.01, 0, 0);
   float friction = 0.5;
+  float time_mod = 0.15;
   float h = 3;
   float rho_0 = 4;
   float k = 0.8;
@@ -116,7 +119,7 @@ void main() {
 
   if (phase == 0) {
     out_den = 0;
-    for (int i = 0; i < 2000; i += 1) {
+    for (int i = 0; i < num_particles; i += 1) {
       float w;
       vec4 other_pos;
       get_in_pos(i, other_pos);
@@ -128,7 +131,7 @@ void main() {
   } else if (phase == 1) {
     vec4 f_pressure, f_viscosity, f_other;
 
-    for (int i = 0; i < 2000; i += 1) {
+    for (int i = 0; i < num_particles; i += 1) {
       // The kernel gradient.
       vec4 dw;
       vec4 other_pos;
@@ -162,7 +165,7 @@ void main() {
 
     vec4 f = f_pressure + f_viscosity + f_other;
     f /= mass;
-    // f *= delta_t;
+    f *= (curr_time - prev_time) * time_mod;
 
     out_vel = in_vel + f;
 

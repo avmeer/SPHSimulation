@@ -21,7 +21,7 @@ GLFWwindow* window;
 #define GROUND 0
 #define PARTICLE 1
 
-#define PARTICLES 2048
+#define PARTICLES 4096
 #define WARP_SIZE 256
 #define SPHERE_THETA_STEPS 10
 #define SPHERE_PHI_STEPS 10
@@ -105,6 +105,8 @@ struct PALocs {
 } particle_a;
 
 struct CULocs {
+  GLint num_particles;
+  GLint prev_time;
   GLint curr_time;
   GLint flip;
   GLint phase;
@@ -113,7 +115,7 @@ struct CULocs {
 
 GLuint vaods[2];
 
-float curr_time;
+float prev_time, curr_time;
 position* particle_locs;
 position* particle_vels;
 GLuint pos_buffers[2];
@@ -224,6 +226,8 @@ void update_particles() {
   if (!test) {
     phase = 0;
     glUseProgram(compute_shader);
+    glUniform1i(compute_u.num_particles, PARTICLES);
+    glUniform1f(compute_u.prev_time, prev_time);
     glUniform1f(compute_u.curr_time, curr_time);
     glUniform1i(compute_u.flip, flip);
     glUniform1i(compute_u.phase, phase);
@@ -233,6 +237,8 @@ void update_particles() {
     
     phase = 1;
     glUseProgram(compute_shader);
+    glUniform1i(compute_u.num_particles, PARTICLES);
+    glUniform1f(compute_u.prev_time, prev_time);
     glUniform1f(compute_u.curr_time, curr_time);
     glUniform1i(compute_u.flip, flip);
     glUniform1i(compute_u.phase, phase);
@@ -247,22 +253,6 @@ void update_particles() {
     flip = flop;
     flop = t;
     // test = true;
-  } else {
-    phase = 2;
-    glUseProgram(compute_shader);
-    glUniform1f(compute_u.curr_time, curr_time);
-    glUniform1i(compute_u.flip, flip);
-    glUniform1i(compute_u.phase, phase);
-    glUniform1f(compute_u.half_width, half_width);
-    glDispatchCompute(PARTICLES / WARP_SIZE, 1, 1);
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    int t = flip;
-    flip = flop;
-    flop = t;
   }
 }
 
@@ -434,6 +424,8 @@ void setup_shaders() {
   );
   glLinkProgram(compute_shader);
 
+  compute_u.num_particles = glGetUniformLocation(compute_shader, "num_particles");
+  compute_u.prev_time = glGetUniformLocation(compute_shader, "prev_time");
   compute_u.curr_time = glGetUniformLocation(compute_shader, "curr_time");
   compute_u.flip = glGetUniformLocation(compute_shader, "flip");
   compute_u.phase = glGetUniformLocation(compute_shader, "phase");
@@ -640,6 +632,7 @@ void check_error(){
 }
 
 int main(int argc, char** argv) {
+  prev_time = 0;
   curr_time = 0;
   step = 0;
 
@@ -670,6 +663,8 @@ int main(int argc, char** argv) {
     update_particles();
     render();
     check_error();
+    
+    prev_time = curr_time;
   }
   while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS &&
 		   glfwWindowShouldClose(window) == 0 );
