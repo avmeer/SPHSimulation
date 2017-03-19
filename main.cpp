@@ -123,7 +123,6 @@ GLuint vaods[2];
 float curr_time;
 position* particle_locs;
 position* particle_vels;
-GLuint compute_vaods[1];
 GLuint pos_buffers[2];
 GLuint vel_buffers[2];
 GLuint den_buffers[2];
@@ -516,28 +515,6 @@ void setup_buffers() {
     NULL,
     GL_DYNAMIC_DRAW
   );
-
-  glGenVertexArrays(1, compute_vaods);
-  glBindVertexArray(compute_vaods[0]);
-
-  glBindBuffer(GL_ARRAY_BUFFER, pos_buffers[0]);
-  glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexAttribArray(0);
-
-  glBindBuffer(GL_ARRAY_BUFFER, vel_buffers[0]);
-  glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexAttribArray(1);
-
-  glBindBuffer(GL_ARRAY_BUFFER, pos_buffers[1]);
-  glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexAttribArray(2);
-
-  glBindBuffer(GL_ARRAY_BUFFER, vel_buffers[1]);
-  glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexAttribArray(3);
-
-  glBindVertexArray(0);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   // The ground.
   glBindVertexArray(vaods[GROUND]);
