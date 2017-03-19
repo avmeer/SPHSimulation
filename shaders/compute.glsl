@@ -37,7 +37,7 @@ void kernel_func(in vec4 pi, in vec4 pj, in float h, out float value) {
   value = exp(-1 * x * x / h / h);
   value /= h;
   value /= sqrt(3.14159);
-  value *= 32;
+  value *= 30;
 
   // This is a cubic spline kernel, which is supposed to be more efficient.
   // value = 0;
@@ -98,9 +98,9 @@ void main() {
   float mass = 0.01;
   vec4 gravity = vec4(0, -0.01, 0, 0);
   float friction = 0.5;
-  float h = 10;
+  float h = 3;
   float rho_0 = 4;
-  float k = 0.5;
+  float k = 0.8;
 
   int index = int(gl_GlobalInvocationID.x);
   vec4 in_pos, in_vel, out_pos, out_vel;
@@ -129,22 +129,34 @@ void main() {
     vec4 f_pressure, f_viscosity, f_other;
 
     for (int i = 0; i < 2000; i += 1) {
+      // The kernel gradient.
       vec4 dw;
       vec4 other_pos;
       get_in_pos(i, other_pos);
       gradient_kernel_func(in_pos, other_pos, h, dw);
 
+      // Pressure.
       float other_den, other_prs;
       get_in_den(i, other_den);
       get_in_prs(i, other_prs);
-      dw *= (in_prs / in_den / in_den + other_prs / other_den / other_den);
-      dw *= mass;
+      f_pressure += 
+        mass * 
+        (in_prs / in_den / in_den + other_prs / other_den / other_den) * 
+        dw;
 
-      f_pressure += dw;
+      // Viscosity.
+      vec4 other_vel;
+      get_in_vel(i, other_vel);
+      vec4 diff_pos = in_pos - other_pos;
+      f_viscosity +=
+        mass / in_den *
+        in_vel * (
+          dot(diff_pos, dw) /
+          (dot(diff_pos, diff_pos) + 0.01 * h * h)
+        );
     }
     f_pressure *= -mass;
-
-    f_viscosity = vec4(0, 0, 0, 0);
+    f_viscosity *= 2 * mass;
 
     f_other = mass * gravity;
 
