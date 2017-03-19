@@ -53,7 +53,7 @@ GLint l_mouse, r_mouse;
 
 glm::vec2 mouse(-9999, -9999);
 
-glm::vec3 camera_angles(1.82, 2.01, 30);
+glm::vec3 camera_angles(1.82, 2.01, 50);
 glm::vec3 eye(10, 10, 10);
 glm::vec3 look_at(0, 0, 0);
 glm::vec3 up(0, 1, 0);
@@ -115,6 +115,7 @@ struct PALocs {
 struct CULocs {
   GLint curr_time;
   GLint flip;
+  GLint phase;
 } compute_u;
 
 GLuint vaods[2];
@@ -125,8 +126,11 @@ position* particle_vels;
 GLuint compute_vaods[1];
 GLuint pos_buffers[2];
 GLuint vel_buffers[2];
+GLuint den_buffers[2];
+GLuint prs_buffers[2];
 int flip = 0;
 int flop = 1;
+int phase = 0;
 
 double step;
 
@@ -145,8 +149,8 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 	//limit the camera radius to some reasonable values so the user can't get lost
 	if(camera_angles.z < 1.0) 
 		camera_angles.z = 1.0;
-	if(camera_angles.z > 50.0) 
-		camera_angles.z = 50.0;
+	if(camera_angles.z > 300.0) 
+		camera_angles.z = 300.0;
 
 	calculate_camera_pos();
 }
@@ -218,9 +222,19 @@ void resize(int w, int h) {
 
 void update_particles() {
   if (!test) {
+    phase = 0;
     glUseProgram(compute_shader);
     glUniform1f(compute_u.curr_time, curr_time);
     glUniform1i(compute_u.flip, flip);
+    glUniform1i(compute_u.phase, phase);
+    glDispatchCompute(PARTICLES / WARP_SIZE, 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    
+    phase = 1;
+    glUseProgram(compute_shader);
+    glUniform1f(compute_u.curr_time, curr_time);
+    glUniform1i(compute_u.flip, flip);
+    glUniform1i(compute_u.phase, phase);
     glDispatchCompute(PARTICLES / WARP_SIZE, 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
@@ -231,6 +245,21 @@ void update_particles() {
     flip = flop;
     flop = t;
     test = true;
+  } else {
+    phase = 2;
+    glUseProgram(compute_shader);
+    glUniform1f(compute_u.curr_time, curr_time);
+    glUniform1i(compute_u.flip, flip);
+    glUniform1i(compute_u.phase, phase);
+    glDispatchCompute(PARTICLES / WARP_SIZE, 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    int t = flip;
+    flip = flop;
+    flop = t;
   }
 }
 
@@ -408,6 +437,7 @@ void setup_shaders() {
 
   compute_u.curr_time = glGetUniformLocation(compute_shader, "curr_time");
   compute_u.flip = glGetUniformLocation(compute_shader, "flip");
+  compute_u.phase = glGetUniformLocation(compute_shader, "phase");
 }
 
 void setup_buffers() {
@@ -416,7 +446,7 @@ void setup_buffers() {
 
   // Buffer for the compute shader.
   glGenBuffers(1, &pos_buffers[flip]);
-  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pos_buffers[flip]);
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pos_buffers[0]);
   glBufferData(
     GL_SHADER_STORAGE_BUFFER,
     PARTICLES * sizeof(position),
@@ -424,8 +454,8 @@ void setup_buffers() {
     GL_DYNAMIC_DRAW
   );
 
-  glGenBuffers(1, &vel_buffers[flip]);
-  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, vel_buffers[flip]);
+  glGenBuffers(1, &vel_buffers[0]);
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, vel_buffers[0]);
   glBufferData(
     GL_SHADER_STORAGE_BUFFER,
     PARTICLES * sizeof(position),
@@ -433,8 +463,26 @@ void setup_buffers() {
     GL_DYNAMIC_DRAW
   );
 
-  glGenBuffers(1, &pos_buffers[flop]);
-  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, pos_buffers[flop]);
+  glGenBuffers(1, &den_buffers[0]);
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, den_buffers[0]);
+  glBufferData(
+    GL_SHADER_STORAGE_BUFFER,
+    PARTICLES * sizeof(GLfloat),
+    NULL,
+    GL_DYNAMIC_DRAW
+  );
+
+  glGenBuffers(1, &prs_buffers[0]);
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, prs_buffers[0]);
+  glBufferData(
+    GL_SHADER_STORAGE_BUFFER,
+    PARTICLES * sizeof(GLfloat),
+    NULL,
+    GL_DYNAMIC_DRAW
+  );
+
+  glGenBuffers(1, &pos_buffers[1]);
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, pos_buffers[1]);
   glBufferData(
     GL_SHADER_STORAGE_BUFFER,
     PARTICLES * sizeof(position),
@@ -442,31 +490,49 @@ void setup_buffers() {
     GL_DYNAMIC_DRAW
   );
 
-  glGenBuffers(1, &vel_buffers[flop]);
-  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, vel_buffers[flop]);
+  glGenBuffers(1, &vel_buffers[1]);
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, vel_buffers[1]);
   glBufferData(
     GL_SHADER_STORAGE_BUFFER,
     PARTICLES * sizeof(position),
     &particle_vels[0],
+    GL_DYNAMIC_DRAW
+  );
+
+  glGenBuffers(1, &den_buffers[1]);
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, den_buffers[1]);
+  glBufferData(
+    GL_SHADER_STORAGE_BUFFER,
+    PARTICLES * sizeof(GLfloat),
+    NULL,
+    GL_DYNAMIC_DRAW
+  );
+
+  glGenBuffers(1, &prs_buffers[1]);
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, prs_buffers[1]);
+  glBufferData(
+    GL_SHADER_STORAGE_BUFFER,
+    PARTICLES * sizeof(GLfloat),
+    NULL,
     GL_DYNAMIC_DRAW
   );
 
   glGenVertexArrays(1, compute_vaods);
   glBindVertexArray(compute_vaods[0]);
 
-  glBindBuffer(GL_ARRAY_BUFFER, pos_buffers[flip]);
+  glBindBuffer(GL_ARRAY_BUFFER, pos_buffers[0]);
   glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
   glEnableVertexAttribArray(0);
 
-  glBindBuffer(GL_ARRAY_BUFFER, vel_buffers[flip]);
+  glBindBuffer(GL_ARRAY_BUFFER, vel_buffers[0]);
   glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, 0);
   glEnableVertexAttribArray(1);
 
-  glBindBuffer(GL_ARRAY_BUFFER, pos_buffers[flop]);
+  glBindBuffer(GL_ARRAY_BUFFER, pos_buffers[1]);
   glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 0, 0);
   glEnableVertexAttribArray(2);
 
-  glBindBuffer(GL_ARRAY_BUFFER, vel_buffers[flop]);
+  glBindBuffer(GL_ARRAY_BUFFER, vel_buffers[1]);
   glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 0, 0);
   glEnableVertexAttribArray(3);
 
@@ -564,9 +630,9 @@ void setup_particles() {
   for (int i = 0; i < sp; i += 1) {
     for (int j = 0; j < sp; j += 1) {
       int k = i * sp + j;
-      particle_locs[k].x = i * step + offset;
-      particle_locs[k].y = 2;
-      particle_locs[k].z = j * step + offset;
+      particle_locs[k].x = (float)(rand() % 100) / 100 * width + offset;
+      particle_locs[k].y = (float)(rand() % 100) / 100 * width;
+      particle_locs[k].z = (float)(rand() % 100) / 100 * width + offset;
       particle_locs[k].w = 1;
       particle_vels[k].x = 0;
       particle_vels[k].y = 0;
