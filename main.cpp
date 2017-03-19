@@ -35,13 +35,6 @@ typedef struct {
   float x, y, z, w;
 } position;
 
-const vertex ground_verts[] = {
-  {-15, 0, -15, 0, 1, 0},
-  {-15, 0,  15, 0, 1, 0},
-  { 15, 0,  15, 0, 1, 0},
-  { 15, 0, -15, 0, 1, 0}
-};
-
 const unsigned short ground_indices[] = {
   0, 2, 1,
   0, 3, 2
@@ -68,7 +61,6 @@ float ground_mat_sh = 0.6 * 128;
 
 glm::vec3 particle_mat_a(0, 0.1, 0.06);
 glm::vec3 particle_mat_d(0, 0, 0.7);
-glm::vec3 particle_mat_d2(0.7, 0, 0);
 glm::vec3 particle_mat_s(0.50196078, 0.50196078, 0.50196078);
 float particle_mat_sh = 0.25 * 128;
 
@@ -116,6 +108,7 @@ struct CULocs {
   GLint curr_time;
   GLint flip;
   GLint phase;
+  GLint half_width;
 } compute_u;
 
 GLuint vaods[2];
@@ -130,8 +123,16 @@ GLuint prs_buffers[2];
 int flip = 0;
 int flop = 1;
 int phase = 0;
+float half_width = 15;
 
 double step;
+
+const vertex ground_verts[] = {
+  {-half_width, 0, -half_width, 0, 1, 0},
+  {-half_width, 0,  half_width, 0, 1, 0},
+  { half_width, 0,  half_width, 0, 1, 0},
+  { half_width, 0, -half_width, 0, 1, 0}
+};
 
 bool test = false;
 
@@ -226,6 +227,7 @@ void update_particles() {
     glUniform1f(compute_u.curr_time, curr_time);
     glUniform1i(compute_u.flip, flip);
     glUniform1i(compute_u.phase, phase);
+    glUniform1f(compute_u.half_width, half_width);
     glDispatchCompute(PARTICLES / WARP_SIZE, 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     
@@ -234,6 +236,7 @@ void update_particles() {
     glUniform1f(compute_u.curr_time, curr_time);
     glUniform1i(compute_u.flip, flip);
     glUniform1i(compute_u.phase, phase);
+    glUniform1f(compute_u.half_width, half_width);
     glDispatchCompute(PARTICLES / WARP_SIZE, 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
@@ -243,13 +246,14 @@ void update_particles() {
     int t = flip;
     flip = flop;
     flop = t;
-    test = true;
+    // test = true;
   } else {
     phase = 2;
     glUseProgram(compute_shader);
     glUniform1f(compute_u.curr_time, curr_time);
     glUniform1i(compute_u.flip, flip);
     glUniform1i(compute_u.phase, phase);
+    glUniform1f(compute_u.half_width, half_width);
     glDispatchCompute(PARTICLES / WARP_SIZE, 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
@@ -301,11 +305,7 @@ void render() {
   glUniform3fv(particle_u.light_Ls, 1, &light_color[0]);
   glUniform3fv(particle_u.mat_Ka, 1, &particle_mat_a[0]);
   glUniform3fv(particle_u.mat_Ks, 1, &particle_mat_s[0]);
-  if (flip == 0) {
-    glUniform3fv(particle_u.mat_Kd, 1, &particle_mat_d[0]);
-  } else {
-    glUniform3fv(particle_u.mat_Kd, 1, &particle_mat_d2[0]);
-  }
+  glUniform3fv(particle_u.mat_Kd, 1, &particle_mat_d[0]);
   glUniform1f(particle_u.mat_shiny, particle_mat_sh);
 
   m_mat = glm::mat4(1.0f);
@@ -437,6 +437,7 @@ void setup_shaders() {
   compute_u.curr_time = glGetUniformLocation(compute_shader, "curr_time");
   compute_u.flip = glGetUniformLocation(compute_shader, "flip");
   compute_u.phase = glGetUniformLocation(compute_shader, "phase");
+  compute_u.half_width = glGetUniformLocation(compute_shader, "half_width");
 }
 
 void setup_buffers() {
@@ -600,7 +601,7 @@ void setup_particles() {
   particle_locs = new position[PARTICLES];
   particle_vels = new position[PARTICLES];
   int sp = sqrt(PARTICLES);
-  float offset = -15;
+  float offset = -half_width;
   float width = 30;
   float step = width / sp;
 

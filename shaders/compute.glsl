@@ -3,6 +3,7 @@
 uniform float curr_time;
 uniform int flip;
 uniform int phase;
+uniform float half_width;
 
 layout (local_size_x = 256) in;
 layout (std430, binding = 0) buffer pos0 {
@@ -55,7 +56,6 @@ void gradient_kernel_func(in vec4 pi, in vec4 pj, in float h, out vec4 value) {
   b /= (h * h * h);
   b /= sqrt(3.14159);
   b *= 2;
-  b *= 10;
 
   value.x = b * (pj.x - pi.x);
   value.y = b * (pj.y - pi.y);
@@ -97,6 +97,7 @@ void get_in_prs(in int i, out float in_prs) {
 void main() {
   float mass = 0.01;
   vec4 gravity = vec4(0, -0.01, 0, 0);
+  float friction = 0.5;
   float h = 10;
   float rho_0 = 4;
   float k = 0.5;
@@ -152,9 +153,30 @@ void main() {
     // f *= delta_t;
 
     out_vel = in_vel + f;
-  }
 
-  out_pos += out_vel;
+    if (in_pos.x < -half_width) {
+      out_vel.x = -friction * out_vel.x;
+      out_pos.x = -half_width;
+    } else if (in_pos.x > half_width) {
+      out_vel.x = -friction * out_vel.x;
+      out_pos.x = half_width;
+    }
+
+    if (in_pos.y < 0) {
+      out_vel.y = -friction * out_vel.y;
+      out_pos.y = 0;
+    }
+
+    if (in_pos.z < -half_width) {
+      out_vel.z = -friction * out_vel.z;
+      out_pos.z = -half_width;
+    } else if (in_pos.z > half_width) {
+      out_vel.z = -friction * out_vel.z;
+      out_pos.z = half_width;
+    }
+
+    out_pos += out_vel;
+  }
 
   if (flip == 0) {
     FlopPosition[index] = out_pos;
