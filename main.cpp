@@ -215,11 +215,11 @@ static void cursor_position_callback(GLFWwindow* window, double xpos, double ypo
     mouse.y = y;
 }
 
-void resize(int w, int h) {
-  window_width = w;
-  window_height = h;
+void window_size_callback(GLFWwindow* window, int width, int height){
+  window_width = width;
+  window_height = height;
 
-  glViewport(0, 0, w, h);
+  glViewport(0, 0, window_width, window_height);
 }
 
 void update_particles() {
@@ -354,6 +354,7 @@ void setup_GLUT(int argc, char** argv) {
 	glfwSetMouseButtonCallback(window, mouse_click_callback);
 	glfwSetCursorPosCallback(window, cursor_position_callback);
 	glfwSetScrollCallback(window, scroll_callback);
+  glfwSetWindowSizeCallback(window, window_size_callback);
 }
 
 void setup_OGL() {
