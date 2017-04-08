@@ -7,6 +7,11 @@ uniform int flip;
 uniform int phase;
 uniform float half_width;
 
+uniform float h;
+uniform float kernel_mult;
+uniform float gradient_kernel_mult;
+uniform float g;
+
 layout (local_size_x = 256) in;
 layout (std430, binding = 0) buffer pos0 {
   vec4 FlipPosition[];
@@ -39,7 +44,8 @@ void kernel_func(in vec4 pi, in vec4 pj, in float h, out float value) {
   value = exp(-1 * x * x / h / h);
   value /= h;
   value /= sqrt(3.14159);
-  value *= 30;
+  // value *= 30;
+  value *= kernel_mult;
 
   // This is a cubic spline kernel, which is supposed to be more efficient.
   // value = 0;
@@ -57,7 +63,8 @@ void gradient_kernel_func(in vec4 pi, in vec4 pj, in float h, out vec4 value) {
   float b = exp(-1 * a * a / h / h);
   b /= (h * h * h);
   b /= sqrt(3.14159);
-  b *= 2;
+  // b *= 2;
+  b *= gradient_kernel_mult;
 
   value.x = b * (pj.x - pi.x);
   value.y = b * (pj.y - pi.y);
@@ -98,10 +105,11 @@ void get_in_prs(in int i, out float in_prs) {
 
 void main() {
   float mass = 0.01;
-  vec4 gravity = vec4(0, -0.01, 0, 0);
+  vec4 gravity = vec4(0, g, 0, 0);
   float friction = 0.5;
+  float amb_friction = 0.99;
   float time_mod = 0.15;
-  float h = 3;
+  // float h = 2;
   float rho_0 = 4;
   float k = 0.8;
 
@@ -167,7 +175,7 @@ void main() {
     f /= mass;
     f *= (curr_time - prev_time) * time_mod;
 
-    out_vel = in_vel + f;
+    out_vel = in_vel * amb_friction + f;
 
     if (in_pos.x < -half_width) {
       out_vel.x = -friction * out_vel.x;

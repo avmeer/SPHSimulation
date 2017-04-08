@@ -25,6 +25,7 @@ GLFWwindow* window;
 #define WARP_SIZE 256
 #define SPHERE_THETA_STEPS 10
 #define SPHERE_PHI_STEPS 10
+#define SPHERE_RADIUS 1
 
 typedef struct {
   float x, y, z;
@@ -111,6 +112,10 @@ struct CULocs {
   GLint flip;
   GLint phase;
   GLint half_width;
+  GLint h;
+  GLint kernel_mult;
+  GLint gradient_kernel_mult;
+  GLint g;
 } compute_u;
 
 GLuint vaods[2];
@@ -126,14 +131,26 @@ int flip = 0;
 int flop = 1;
 int phase = 0;
 float half_width = 15;
+float h = 2.75;
+float kernel_mult = 46;
+float gradient_kernel_mult = 3.8;
+float g = -0.017;
+bool q_lock = false;
+bool a_lock = false;
+bool w_lock = false;
+bool s_lock = false;
+bool e_lock = false;
+bool d_lock = false;
+bool r_lock = false;
+bool f_lock = false;
 
 double step;
 
 const vertex ground_verts[] = {
-  {-half_width, 0, -half_width, 0, 1, 0},
-  {-half_width, 0,  half_width, 0, 1, 0},
-  { half_width, 0,  half_width, 0, 1, 0},
-  { half_width, 0, -half_width, 0, 1, 0}
+  {-half_width, -1.2, -half_width, 0, 1, 0},
+  {-half_width, -1.2,  half_width, 0, 1, 0},
+  { half_width, -1.2,  half_width, 0, 1, 0},
+  { half_width, -1.2, -half_width, 0, 1, 0}
 };
 
 bool test = false;
@@ -232,17 +249,15 @@ void update_particles() {
     glUniform1i(compute_u.flip, flip);
     glUniform1i(compute_u.phase, phase);
     glUniform1f(compute_u.half_width, half_width);
+    glUniform1f(compute_u.h, h);
+    glUniform1f(compute_u.kernel_mult, kernel_mult);
+    glUniform1f(compute_u.gradient_kernel_mult, gradient_kernel_mult);
+    glUniform1f(compute_u.g, g);
     glDispatchCompute(PARTICLES / WARP_SIZE, 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     
     phase = 1;
-    glUseProgram(compute_shader);
-    glUniform1i(compute_u.num_particles, PARTICLES);
-    glUniform1f(compute_u.prev_time, prev_time);
-    glUniform1f(compute_u.curr_time, curr_time);
-    glUniform1i(compute_u.flip, flip);
     glUniform1i(compute_u.phase, phase);
-    glUniform1f(compute_u.half_width, half_width);
     glDispatchCompute(PARTICLES / WARP_SIZE, 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
@@ -431,6 +446,10 @@ void setup_shaders() {
   compute_u.flip = glGetUniformLocation(compute_shader, "flip");
   compute_u.phase = glGetUniformLocation(compute_shader, "phase");
   compute_u.half_width = glGetUniformLocation(compute_shader, "half_width");
+  compute_u.h = glGetUniformLocation(compute_shader, "h");
+  compute_u.kernel_mult = glGetUniformLocation(compute_shader, "kernel_mult");
+  compute_u.gradient_kernel_mult = glGetUniformLocation(compute_shader, "gradient_kernel_mult");
+  compute_u.g = glGetUniformLocation(compute_shader, "g");
 }
 
 void setup_buffers() {
@@ -438,7 +457,7 @@ void setup_buffers() {
   GLuint vbods[2];
 
   // Buffer for the compute shader.
-  glGenBuffers(1, &pos_buffers[flip]);
+  glGenBuffers(1, &pos_buffers[0]);
   glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pos_buffers[0]);
   glBufferData(
     GL_SHADER_STORAGE_BUFFER,
@@ -535,33 +554,33 @@ void setup_buffers() {
       float bottom = ((float)(j + 1) / (float)SPHERE_PHI_STEPS) * 3.14159;
       int k = i * SPHERE_PHI_STEPS + j;
 
-      particle_verts[k * 4 + 0].x = cosf(left) * sinf(top);
-      particle_verts[k * 4 + 0].y = cosf(top);
-      particle_verts[k * 4 + 0].z = sinf(left) * sinf(top);
-      particle_verts[k * 4 + 0].nx = particle_verts[k * 4 + 0].x;
-      particle_verts[k * 4 + 0].ny = particle_verts[k * 4 + 0].y;
-      particle_verts[k * 4 + 0].nz = particle_verts[k * 4 + 0].z;
+      particle_verts[k * 4 + 0].x = SPHERE_RADIUS * cosf(left) * sinf(top);
+      particle_verts[k * 4 + 0].y = SPHERE_RADIUS * cosf(top);
+      particle_verts[k * 4 + 0].z = SPHERE_RADIUS * sinf(left) * sinf(top);
+      particle_verts[k * 4 + 0].nx = particle_verts[k * 4 + 0].x / SPHERE_RADIUS;
+      particle_verts[k * 4 + 0].ny = particle_verts[k * 4 + 0].y / SPHERE_RADIUS;
+      particle_verts[k * 4 + 0].nz = particle_verts[k * 4 + 0].z / SPHERE_RADIUS;
 
-      particle_verts[k * 4 + 1].x = cosf(right) * sinf(top);
-      particle_verts[k * 4 + 1].y = cosf(top);
-      particle_verts[k * 4 + 1].z = sinf(right) * sinf(top);
-      particle_verts[k * 4 + 1].nx = particle_verts[k * 4 + 1].x;
-      particle_verts[k * 4 + 1].ny = particle_verts[k * 4 + 1].y;
-      particle_verts[k * 4 + 1].nz = particle_verts[k * 4 + 1].z;
+      particle_verts[k * 4 + 1].x = SPHERE_RADIUS * cosf(right) * sinf(top);
+      particle_verts[k * 4 + 1].y = SPHERE_RADIUS * cosf(top);
+      particle_verts[k * 4 + 1].z = SPHERE_RADIUS * sinf(right) * sinf(top);
+      particle_verts[k * 4 + 1].nx = particle_verts[k * 4 + 1].x / SPHERE_RADIUS;
+      particle_verts[k * 4 + 1].ny = particle_verts[k * 4 + 1].y / SPHERE_RADIUS;
+      particle_verts[k * 4 + 1].nz = particle_verts[k * 4 + 1].z / SPHERE_RADIUS;
 
-      particle_verts[k * 4 + 2].x = cosf(right) * sinf(bottom);
-      particle_verts[k * 4 + 2].y = cosf(bottom);
-      particle_verts[k * 4 + 2].z = sinf(right) * sinf(bottom);
-      particle_verts[k * 4 + 2].nx = particle_verts[k * 4 + 2].x;
-      particle_verts[k * 4 + 2].ny = particle_verts[k * 4 + 2].y;
-      particle_verts[k * 4 + 2].nz = particle_verts[k * 4 + 2].z;
+      particle_verts[k * 4 + 2].x = SPHERE_RADIUS * cosf(right) * sinf(bottom);
+      particle_verts[k * 4 + 2].y = SPHERE_RADIUS * cosf(bottom);
+      particle_verts[k * 4 + 2].z = SPHERE_RADIUS * sinf(right) * sinf(bottom);
+      particle_verts[k * 4 + 2].nx = particle_verts[k * 4 + 2].x / SPHERE_RADIUS;
+      particle_verts[k * 4 + 2].ny = particle_verts[k * 4 + 2].y / SPHERE_RADIUS;
+      particle_verts[k * 4 + 2].nz = particle_verts[k * 4 + 2].z / SPHERE_RADIUS;
 
-      particle_verts[k * 4 + 3].x = cosf(left) * sinf(bottom);
-      particle_verts[k * 4 + 3].y = cosf(bottom);
-      particle_verts[k * 4 + 3].z = sinf(left) * sinf(bottom);
-      particle_verts[k * 4 + 3].nx = particle_verts[k * 4 + 3].x;
-      particle_verts[k * 4 + 3].ny = particle_verts[k * 4 + 3].y;
-      particle_verts[k * 4 + 3].nz = particle_verts[k * 4 + 3].z;
+      particle_verts[k * 4 + 3].x = SPHERE_RADIUS * cosf(left) * sinf(bottom);
+      particle_verts[k * 4 + 3].y = SPHERE_RADIUS * cosf(bottom);
+      particle_verts[k * 4 + 3].z = SPHERE_RADIUS * sinf(left) * sinf(bottom);
+      particle_verts[k * 4 + 3].nx = particle_verts[k * 4 + 3].x / SPHERE_RADIUS;
+      particle_verts[k * 4 + 3].ny = particle_verts[k * 4 + 3].y / SPHERE_RADIUS;
+      particle_verts[k * 4 + 3].nz = particle_verts[k * 4 + 3].z / SPHERE_RADIUS;
 
       particle_indices[k * 6 + 0] = k * 4 + 0;
       particle_indices[k * 6 + 1] = k * 4 + 2;
@@ -613,6 +632,115 @@ void setup_particles() {
   }
 }
 
+void reset_particles() {
+  setup_particles();
+
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pos_buffers[0]);
+  glBufferData(
+    GL_SHADER_STORAGE_BUFFER,
+    PARTICLES * sizeof(position),
+    &particle_locs[0],
+    GL_DYNAMIC_DRAW
+  );
+
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, vel_buffers[0]);
+  glBufferData(
+    GL_SHADER_STORAGE_BUFFER,
+    PARTICLES * sizeof(position),
+    &particle_vels[0],
+    GL_DYNAMIC_DRAW
+  );
+
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, pos_buffers[1]);
+  glBufferData(
+    GL_SHADER_STORAGE_BUFFER,
+    PARTICLES * sizeof(position),
+    &particle_locs[0],
+    GL_DYNAMIC_DRAW
+  );
+
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, vel_buffers[1]);
+  glBufferData(
+    GL_SHADER_STORAGE_BUFFER,
+    PARTICLES * sizeof(position),
+    &particle_vels[0],
+    GL_DYNAMIC_DRAW
+  );
+}
+
+void check_keys() {
+  bool changed = false;
+  if (!q_lock && glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+    h += 0.25;
+    changed = true;
+    q_lock = true;
+  }
+  if (!a_lock && glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+    h -= 0.25;
+    changed = true;
+    a_lock = true;
+  }
+  if (!w_lock && glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+    kernel_mult += 1;
+    changed = true;
+    w_lock = true;
+  }
+  if (!s_lock && glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+    kernel_mult -= 1;
+    changed = true;
+    s_lock = true;
+  }
+  if (!e_lock && glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+    gradient_kernel_mult += 0.25;
+    changed = true;
+    e_lock = true;
+  }
+  if (!d_lock && glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+    gradient_kernel_mult -= 0.25;
+    changed = true;
+    d_lock = true;
+  }
+  if (!r_lock && glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
+    g -= 0.001;
+    changed = true;
+    r_lock = true;
+  }
+  if (!f_lock && glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) {
+    g += 0.001;
+    changed = true;
+    f_lock = true;
+  }
+
+  if (q_lock && glfwGetKey(window, GLFW_KEY_Q) == GLFW_RELEASE) {
+    q_lock = false;
+  }
+  if (a_lock && glfwGetKey(window, GLFW_KEY_A) == GLFW_RELEASE) {
+    a_lock = false;
+  }
+  if (w_lock && glfwGetKey(window, GLFW_KEY_W) == GLFW_RELEASE) {
+    w_lock = false;
+  }
+  if (s_lock && glfwGetKey(window, GLFW_KEY_S) == GLFW_RELEASE) {
+    s_lock = false;
+  }
+  if (e_lock && glfwGetKey(window, GLFW_KEY_E) == GLFW_RELEASE) {
+    e_lock = false;
+  }
+  if (d_lock && glfwGetKey(window, GLFW_KEY_D) == GLFW_RELEASE) {
+    d_lock = false;
+  }
+  if (r_lock && glfwGetKey(window, GLFW_KEY_R) == GLFW_RELEASE) {
+    r_lock = false;
+  }
+  if (f_lock && glfwGetKey(window, GLFW_KEY_F) == GLFW_RELEASE) {
+    f_lock = false;
+  }
+
+  if (changed) {
+    reset_particles();
+    printf("h: %5.2f,    km: %5.1f,    gkm: %5.1f,    g: %6.3f\n", h, kernel_mult, gradient_kernel_mult, g);
+  }
+}
 
 void check_error(){
   	// check OpenGL error
@@ -661,6 +789,7 @@ int main(int argc, char** argv) {
       lastTime += 1.0;
     }
 
+    check_keys();
     update_particles();
     render();
     check_error();
