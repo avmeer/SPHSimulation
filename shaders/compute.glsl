@@ -11,6 +11,8 @@ uniform float h;
 uniform float kernel_mult;
 uniform float gradient_kernel_mult;
 uniform float g;
+uniform float pressure_mult;
+uniform float viscosity_mult;
 
 layout (local_size_x = 256) in;
 layout (std430, binding = 0) buffer pos0 {
@@ -63,7 +65,7 @@ void gradient_kernel_func(in vec4 pi, in vec4 pj, in float h, out vec4 value) {
   float b = exp(-1 * a * a / h / h);
   b /= (h * h * h);
   b /= sqrt(3.14159);
-  // b *= 2;
+  b *= 2;
   b *= gradient_kernel_mult;
 
   value.x = b * (pj.x - pi.x);
@@ -160,18 +162,18 @@ void main() {
       get_in_vel(i, other_vel);
       vec4 diff_pos = in_pos - other_pos;
       f_viscosity +=
-        mass / in_den *
-        in_vel * (
+        mass * in_vel * (
           dot(diff_pos, dw) /
           (dot(diff_pos, diff_pos) + 0.01 * h * h)
         );
     }
-    f_pressure *= -mass;
-    f_viscosity *= 2 * mass;
+    f_pressure *= -mass * pressure_mult;
+    f_viscosity *= 2 * mass * viscosity_mult;
 
     f_other = mass * gravity;
 
     vec4 f = f_pressure + f_viscosity + f_other;
+    // vec4 f = f_viscosity + f_other;
     f /= mass;
     f *= (curr_time - prev_time) * time_mod;
 

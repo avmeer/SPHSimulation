@@ -116,6 +116,8 @@ struct CULocs {
   GLint kernel_mult;
   GLint gradient_kernel_mult;
   GLint g;
+  GLint pressure_mult;
+  GLint viscosity_mult;
 } compute_u;
 
 GLuint vaods[2];
@@ -133,8 +135,10 @@ int phase = 0;
 float half_width = 15;
 float h = 2.75;
 float kernel_mult = 46;
-float gradient_kernel_mult = 3.8;
+float gradient_kernel_mult = 1.9;
 float g = -0.017;
+float pressure_mult = 1.0;
+float viscosity_mult = 0.2;
 bool q_lock = false;
 bool a_lock = false;
 bool w_lock = false;
@@ -143,6 +147,10 @@ bool e_lock = false;
 bool d_lock = false;
 bool r_lock = false;
 bool f_lock = false;
+bool t_lock = false;
+bool g_lock = false;
+bool y_lock = false;
+bool h_lock = false;
 
 double step;
 
@@ -253,6 +261,8 @@ void update_particles() {
     glUniform1f(compute_u.kernel_mult, kernel_mult);
     glUniform1f(compute_u.gradient_kernel_mult, gradient_kernel_mult);
     glUniform1f(compute_u.g, g);
+    glUniform1f(compute_u.pressure_mult, pressure_mult);
+    glUniform1f(compute_u.viscosity_mult, viscosity_mult);
     glDispatchCompute(PARTICLES / WARP_SIZE, 1, 1);
     glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     
@@ -450,6 +460,8 @@ void setup_shaders() {
   compute_u.kernel_mult = glGetUniformLocation(compute_shader, "kernel_mult");
   compute_u.gradient_kernel_mult = glGetUniformLocation(compute_shader, "gradient_kernel_mult");
   compute_u.g = glGetUniformLocation(compute_shader, "g");
+  compute_u.pressure_mult = glGetUniformLocation(compute_shader, "pressure_mult");
+  compute_u.viscosity_mult = glGetUniformLocation(compute_shader, "viscosity_mult");
 }
 
 void setup_buffers() {
@@ -612,11 +624,32 @@ void setup_buffers() {
 void setup_particles() {
   particle_locs = new position[PARTICLES];
   particle_vels = new position[PARTICLES];
-  int sp = sqrt(PARTICLES);
-  float offset = -half_width;
-  float width = 30;
-  float step = width / sp;
 
+  int sp = sqrt(PARTICLES);
+  float width = 30;
+  float offset = -half_width;
+
+  float sp_x = 0;
+  float sp_y = half_width;
+  float sp_z = 0;
+  float sp_r = half_width * 0.5;
+
+#if 0
+  for (int i = 0; i < PARTICLES; i += 1) {
+    float r = (float)(rand() % 100) / 100 * sp_r;
+    float theta = (float)(rand() % 100) / 100 * 2 * 3.14159;
+    float phi = (float)(rand() % 100) / 100 * 3.14159;
+
+    particle_locs[i].x = sp_x + sin(phi) * cos(theta) * r;
+    particle_locs[i].y = sp_y + sin(phi) * sin(theta) * r;
+    particle_locs[i].z = sp_z + cos(phi) * r;
+    particle_locs[i].w = 1;
+    particle_vels[i].x = 0;
+    particle_vels[i].y = 0;
+    particle_vels[i].z = 0;
+    particle_vels[i].w = 0;
+  }
+#else
   for (int i = 0; i < sp; i += 1) {
     for (int j = 0; j < sp; j += 1) {
       int k = i * sp + j;
@@ -630,6 +663,7 @@ void setup_particles() {
       particle_vels[k].w = 0;
     }
   }
+#endif
 }
 
 void reset_particles() {
@@ -710,6 +744,26 @@ void check_keys() {
     changed = true;
     f_lock = true;
   }
+  if (!t_lock && glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) {
+    viscosity_mult += 0.05;
+    changed = true;
+    t_lock = true;
+  }
+  if (!g_lock && glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) {
+    viscosity_mult -= 0.05;
+    changed = true;
+    g_lock = true;
+  }
+  if (!y_lock && glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS) {
+    pressure_mult += 0.05;
+    changed = true;
+    y_lock = true;
+  }
+  if (!h_lock && glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS) {
+    pressure_mult -= 0.05;
+    changed = true;
+    h_lock = true;
+  }
 
   if (q_lock && glfwGetKey(window, GLFW_KEY_Q) == GLFW_RELEASE) {
     q_lock = false;
@@ -735,10 +789,22 @@ void check_keys() {
   if (f_lock && glfwGetKey(window, GLFW_KEY_F) == GLFW_RELEASE) {
     f_lock = false;
   }
+  if (t_lock && glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE) {
+    t_lock = false;
+  }
+  if (g_lock && glfwGetKey(window, GLFW_KEY_G) == GLFW_RELEASE) {
+    g_lock = false;
+  }
+  if (y_lock && glfwGetKey(window, GLFW_KEY_Y) == GLFW_RELEASE) {
+    y_lock = false;
+  }
+  if (h_lock && glfwGetKey(window, GLFW_KEY_H) == GLFW_RELEASE) {
+    h_lock = false;
+  }
 
   if (changed) {
     reset_particles();
-    printf("h: %5.2f,    km: %5.1f,    gkm: %5.1f,    g: %6.3f\n", h, kernel_mult, gradient_kernel_mult, g);
+    printf("h: %5.2f,    km: %5.1f,    gkm: %5.1f,    g: %6.3f,    vm: %4.2f,    pm: %4.2f\n", h, kernel_mult, gradient_kernel_mult, g, viscosity_mult, pressure_mult);
   }
 }
 
