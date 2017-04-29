@@ -248,37 +248,34 @@ void window_size_callback(GLFWwindow* window, int width, int height){
 }
 
 void update_particles() {
-  if (!test) {
-    phase = 0;
-    glUseProgram(compute_shader);
-    glUniform1i(compute_u.num_particles, PARTICLES);
-    glUniform1f(compute_u.prev_time, prev_time);
-    glUniform1f(compute_u.curr_time, curr_time);
-    glUniform1i(compute_u.flip, flip);
-    glUniform1i(compute_u.phase, phase);
-    glUniform1f(compute_u.half_width, half_width);
-    glUniform1f(compute_u.h, h);
-    glUniform1f(compute_u.kernel_mult, kernel_mult);
-    glUniform1f(compute_u.gradient_kernel_mult, gradient_kernel_mult);
-    glUniform1f(compute_u.g, g);
-    glUniform1f(compute_u.pressure_mult, pressure_mult);
-    glUniform1f(compute_u.viscosity_mult, viscosity_mult);
-    glDispatchCompute(PARTICLES / WARP_SIZE, 1, 1);
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-    
-    phase = 1;
-    glUniform1i(compute_u.phase, phase);
-    glDispatchCompute(PARTICLES / WARP_SIZE, 1, 1);
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+  phase = 0;
+  glUseProgram(compute_shader);
+  glUniform1i(compute_u.num_particles, PARTICLES);
+  glUniform1f(compute_u.prev_time, prev_time);
+  glUniform1f(compute_u.curr_time, curr_time);
+  glUniform1i(compute_u.flip, flip);
+  glUniform1i(compute_u.phase, phase);
+  glUniform1f(compute_u.half_width, half_width);
+  glUniform1f(compute_u.h, h);
+  glUniform1f(compute_u.kernel_mult, kernel_mult);
+  glUniform1f(compute_u.gradient_kernel_mult, gradient_kernel_mult);
+  glUniform1f(compute_u.g, g);
+  glUniform1f(compute_u.pressure_mult, pressure_mult);
+  glUniform1f(compute_u.viscosity_mult, viscosity_mult);
+  glDispatchCompute(PARTICLES / WARP_SIZE, 1, 1);
+  glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+  
+  phase = 1;
+  glUniform1i(compute_u.phase, phase);
+  glDispatchCompute(PARTICLES / WARP_SIZE, 1, 1);
+  glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glBindVertexArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    int t = flip;
-    flip = flop;
-    flop = t;
-    // test = true;
-  }
+  int t = flip;
+  flip = flop;
+  flop = t;
 }
 
 void render() {
@@ -287,14 +284,12 @@ void render() {
   glm::mat3 normal_mat;
   glm::mat4 m_mat, v_mat, p_mat, mv_mat, mvp_mat;
   
-
   p_mat = glm::perspective(45.0f, 4.0f / 3.0f, 0.1f, 100.0f);
   v_mat = glm::lookAt(eye, look_at, up);
   mv_mat = v_mat * m_mat;
   mvp_mat = p_mat * mv_mat;
   normal_mat = glm::transpose(glm::inverse(glm::mat3(mv_mat)));
 
-  
   ground_shader->useProgram();
 
   glUniformMatrix4fv(ground_u.mv_mat, 1, GL_FALSE, &mv_mat[0][0]);
@@ -339,13 +334,11 @@ void render() {
   glEnableVertexAttribArray(2);
   glVertexAttribDivisor(2, 1);
 
-
   glDrawElementsInstanced(GL_TRIANGLES,6 * SPHERE_THETA_STEPS * SPHERE_PHI_STEPS,GL_UNSIGNED_SHORT,(void*)0,PARTICLES);
 
   // Swap buffers
   glfwSwapBuffers(window);
   glfwPollEvents();
-
 }
 
 void setup_GLUT(int argc, char** argv) {
@@ -408,9 +401,7 @@ void setup_shaders() {
   );
   particle_shader = new CSCI441::ShaderProgram(
     "shaders/particle.v.glsl",
-    "",
-    "shaders/particle.f.glsl",
-    ""
+    "shaders/particle.f.glsl"
   );
 
   ground_u.mv_mat = ground_shader->getUniformLocation("mv_mat");
@@ -614,7 +605,6 @@ void setup_buffers() {
   glEnableVertexAttribArray(particle_a.normal);
   glVertexAttribPointer(particle_a.normal, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
 
-
   glBindBuffer(GL_ARRAY_BUFFER, pos_buffers[flip]);
   glVertexAttribPointer(2,3, GL_FLOAT, GL_FALSE,4*sizeof(GL_FLOAT),0);
   glEnableVertexAttribArray(2);
@@ -628,33 +618,13 @@ void setup_particles() {
   int sp = sqrt(PARTICLES);
   float width = 30;
   float offset = -half_width;
+  float height = 5;
 
-  float sp_x = 0;
-  float sp_y = half_width;
-  float sp_z = 0;
-  float sp_r = half_width * 0.5;
-
-#if 0
-  for (int i = 0; i < PARTICLES; i += 1) {
-    float r = (float)(rand() % 100) / 100 * sp_r;
-    float theta = (float)(rand() % 100) / 100 * 2 * 3.14159;
-    float phi = (float)(rand() % 100) / 100 * 3.14159;
-
-    particle_locs[i].x = sp_x + sin(phi) * cos(theta) * r;
-    particle_locs[i].y = sp_y + sin(phi) * sin(theta) * r;
-    particle_locs[i].z = sp_z + cos(phi) * r;
-    particle_locs[i].w = 1;
-    particle_vels[i].x = 0;
-    particle_vels[i].y = 0;
-    particle_vels[i].z = 0;
-    particle_vels[i].w = 0;
-  }
-#else
   for (int i = 0; i < sp; i += 1) {
     for (int j = 0; j < sp; j += 1) {
       int k = i * sp + j;
       particle_locs[k].x = (float)(rand() % 100) / 100 * width + offset;
-      particle_locs[k].y = (float)(rand() % 100) / 100 * width;
+      particle_locs[k].y = (float)(rand() % 100) / 100 * width + height;
       particle_locs[k].z = (float)(rand() % 100) / 100 * width + offset;
       particle_locs[k].w = 1;
       particle_vels[k].x = 0;
@@ -663,7 +633,6 @@ void setup_particles() {
       particle_vels[k].w = 0;
     }
   }
-#endif
 }
 
 void reset_particles() {

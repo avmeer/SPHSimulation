@@ -46,7 +46,6 @@ void kernel_func(in vec4 pi, in vec4 pj, in float h, out float value) {
   value = exp(-1 * x * x / h / h);
   value /= h;
   value /= sqrt(3.14159);
-  // value *= 30;
   value *= kernel_mult;
 
   // This is a cubic spline kernel, which is supposed to be more efficient.
@@ -111,7 +110,6 @@ void main() {
   float friction = 0.5;
   float amb_friction = 0.99;
   float time_mod = 0.15;
-  // float h = 2;
   float rho_0 = 4;
   float k = 0.8;
 
@@ -173,9 +171,7 @@ void main() {
     f_other = mass * gravity;
 
     vec4 f = f_pressure + f_viscosity + f_other;
-    // vec4 f = f_viscosity + f_other;
     f /= mass;
-    f *= (curr_time - prev_time) * time_mod;
 
     out_vel = in_vel * amb_friction + f;
 
