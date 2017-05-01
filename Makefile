@@ -21,7 +21,7 @@
 ## compile against.
 ########################################
 
-TARGET = sph
+TARGET = finalProject
 OBJECTS = main.o src/OpenGLUtils.o src/ShaderProgram.o src/ShaderUtils.o
 
 IN_LAB = 1
@@ -90,7 +90,7 @@ $(TARGET): $(OBJECTS)
 	$(CXX) $(CFLAGS) $(INCPATH) -o $@ $^ $(LIBPATH) $(LIBS)
 
 run: $(TARGET)
-	sph.exe
+	finalProject.exe
 
 debug: $(TARGET)
-	C:\Strawberry\c\bin\gdb.exe sph.exe
+	C:\Strawberry\c\bin\gdb.exe finalProject.exe
